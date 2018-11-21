@@ -15,6 +15,11 @@ import transformer.Constants as Constants
 from dataset import TranslationDataset, paired_collate_fn
 from transformer.Models import Transformer
 from transformer.Optim import ScheduledOptim
+import os
+
+import sentencepiece as spm
+
+sp = spm.SentencePieceProcessor()
 
 def cal_performance(pred, gold, smoothing=False):
     ''' Apply label smoothing if needed '''
@@ -28,6 +33,22 @@ def cal_performance(pred, gold, smoothing=False):
     n_correct = n_correct.masked_select(non_pad_mask).sum().item()
 
     return loss, n_correct
+
+def print_preds(pred, batch_size, outfile):
+    pred = pred.view(batch_size,-1,pred.size(1))
+    pred = pred.max(2)[1]
+    # print(pred.size())
+
+    for b in range(batch_size):
+        sent = pred[b,:]
+        indices = []
+        for token in sent:
+            if token != Constants.EOS:
+                indices.append(token.item())
+            else:
+                break
+        out = sp.DecodeIds(indices)
+        outfile.write(out + '\n')
 
 
 def cal_loss(pred, gold, smoothing):
@@ -71,6 +92,7 @@ def train_epoch(model, training_data, optimizer, device, smoothing):
 
         # forward
         optimizer.zero_grad()
+        #w = input("s")
         pred = model(src_seq, src_pos, tgt_seq, tgt_pos)
 
         # backward
@@ -87,6 +109,7 @@ def train_epoch(model, training_data, optimizer, device, smoothing):
         n_word = non_pad_mask.sum().item()
         n_word_total += n_word
         n_word_correct += n_correct
+        # break
 
     loss_per_word = total_loss/n_word_total
     accuracy = n_word_correct/n_word_total
@@ -101,6 +124,8 @@ def eval_epoch(model, validation_data, device):
     n_word_total = 0
     n_word_correct = 0
 
+    outfile = open('results/mypreds.hyp', 'w')
+
     with torch.no_grad():
         for batch in tqdm(
                 validation_data, mininterval=2,
@@ -112,7 +137,12 @@ def eval_epoch(model, validation_data, device):
 
             # forward
             #print(src_seq,src_pos,tgt_seq,tgt_seq)
+            batch_size = src_seq.size(0)
+
             pred = model(src_seq, src_pos, tgt_seq, tgt_pos)
+            
+            print_preds(pred, batch_size, outfile)
+            
             loss, n_correct = cal_performance(pred, gold, smoothing=False)
 
             # note keeping
@@ -122,6 +152,10 @@ def eval_epoch(model, validation_data, device):
             n_word = non_pad_mask.sum().item()
             n_word_total += n_word
             n_word_correct += n_correct
+
+    outfile.close()
+    os.system("sh calcBLEU.sh")
+
 
     loss_per_word = total_loss/n_word_total
     accuracy = n_word_correct/n_word_total
@@ -195,6 +229,7 @@ def main():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('-data', required=True)
+    parser.add_argument('-snippet_model', required=True)
 
     parser.add_argument('-epoch', type=int, default=10)
     parser.add_argument('-batch_size', type=int, default=64)
@@ -220,9 +255,13 @@ def main():
     parser.add_argument('-no_cuda', action='store_true')
     parser.add_argument('-label_smoothing', action='store_true')
 
+
     opt = parser.parse_args()
     opt.cuda = not opt.no_cuda
     opt.d_word_vec = opt.d_model
+
+    # Snippet model sentencepiece
+    sp.Load(opt.snippet_model)
 
     #========= Loading Dataset =========#
     data = torch.load(opt.data)
@@ -233,6 +272,8 @@ def main():
 
     opt.src_vocab_size = training_data.dataset.src_vocab_size
     opt.tgt_vocab_size = training_data.dataset.tgt_vocab_size
+
+    print(opt.inp_seq_max_len,opt.src_vocab_size)
 
     #========= Preparing Model =========#
     if opt.embs_share_weight:
@@ -286,7 +327,7 @@ def prepare_dataloaders(data, opt):
             tgt_word2idx=data['dict']['tgt'],
             src_insts=data['valid']['src'],
             tgt_insts=data['valid']['tgt']),
-        num_workers=2,
+        num_workers=1,
         batch_size=opt.batch_size,
         collate_fn=paired_collate_fn)
     return train_loader, valid_loader
