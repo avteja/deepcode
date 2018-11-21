@@ -1,0 +1,400 @@
+sum ( d * 10 ** i for i , d in enumerate ( x [ : : - 1 ] ) )
+r = int ( '' . join ( map ( str , x ) ) )
+datetime . strptime ( '2010-11-13#SPACE#10:33:54.227806' , '%Y-%m-%d#SPACE#%H:%M:%S.%f' )
+[ ( i , sum ( j ) / len ( j ) ) for i , j in list ( d . items ( ) ) ]
+zip ( [ 1 , 2 ] , [ 3 , 4 ] )
+[ 'hello{0}' . format ( i ) for i in a ]
+re . sub ( '(?<!\\S)((\\S+)(?:\\s+\\2))(?:\\s+\\2)+(?!\\S)' , '\\1' , s )
+df . div ( df . sum ( axis = 1 ) , axis = 0 )
+map ( lambda t : ( t [ 1 ] , t [ 0 ] ) , mylist )
+[ ( t [ 1 ] , t [ 0 ] ) for t in mylist ]
+driver . find_element_by_xpath ( "//p[@id,#SPACE#'one']/following-sibling::p" )
+re . findall ( '\\[[^\\]]*\\]|\\([^\\)]*\\)|"[^"]*"|\\S+' , strs )
+print ( list ( itertools . combinations ( { 1 , 2 , 3 , 4 } , 3 ) ) )
+df [ [ 'hour' , 'weekday' , 'weeknum' ] ] = df . apply ( lambdafunc , axis = 1 )
+soup . find_all ( 'a' , string = 'Elsie' )
+my_datetime . strftime ( '%B#SPACE#%d,#SPACE#%Y' )
+int ( '' . join ( c for c in s if c . isdigit ( ) ) )
+dic [ 'Test' ] . update ( { 'class' : { 'section' : 5 } } )
+dict ( map ( int , x . split ( ':' ) ) for x in s . split ( ',' ) )
+driver . find_element_by_xpath ( "//div[@id='a']//a[@class='click']" )
+np . where ( ( vals == ( 0 , 1 ) ) . all ( axis = 1 ) )
+SomeModel . objects . filter ( id = id ) . delete ( )
+dict ( [ [ 'two' , 2 ] , [ 'one' , 1 ] ] )
+dict ( zip ( l [ : : 2 ] , l [ 1 : : 2 ] ) )
+GRAVITY = 9.8
+re . findall ( '(([0-9]+)([A-Z]))' , '20M10000N80M' )
+re . findall ( '([0-9]+|[A-Z])' , '20M10000N80M' )
+re . findall ( '([0-9]+)([A-Z])' , '20M10000N80M' )
+re . compile ( '\\w+' ) . findall ( 'Hello#SPACE#world,#SPACE#my#SPACE#name#SPACE#is...James#SPACE#the#SPACE#2nd!' )
+datetime . datetime . strptime ( '03:55' , '%H:%M' ) . time ( )
+requests . get ( 'https://www.reporo.com/' , verify = False )
+a [ a != 0 ]
+new_dict = { k : v for k , v in zip ( keys , values ) }
+dict ( ( k , v ) for k , v in zip ( keys , values ) )
+dict ( [ ( k , v ) for k , v in zip ( keys , values ) ] )
+m = re . search ( '\\[(\\w+)\\]' , s )
+s . setsockopt ( SOL_SOCKET , SO_REUSEADDR , 1 )
+list3 = [ ( a + b ) for a , b in zip ( list1 , list2 ) ]
+[ ord ( c ) for c in s . decode ( 'hex' ) ]
+print ( sorted ( student_tuples , key = lambda t : ( - t [ 2 ] , t [ 0 ] ) ) )
+[ y for x in range ( 3 ) for y in [ x , x ] ]
+txt = open ( 'file.txt' ) . read ( )
+myList [ : ] = [ ( x / myInt ) for x in myList ]
+"""Name:#SPACE#{0[person.name]}""" . format ( { 'person.name' : 'Joe' } )
+df . replace ( '#SPACE#' , '_' , regex = True )
+datetime . datetime . combine ( my_date , datetime . time . min )
+tst2 = str ( tst )
+time . ctime ( os . path . getmtime ( file ) )
+time . ctime ( os . path . getctime ( file ) )
+t = os . path . getmtime ( filename )
+os . path . getmtime ( path )
+print ( 'last#SPACE#modified:#SPACE#%s' % time . ctime ( os . path . getmtime ( file ) ) )
+print ( 'created:#SPACE#%s' % time . ctime ( os . path . getctime ( file ) ) )
+return os . path . getctime ( path_to_file )
+os . system ( 'TASKKILL#SPACE#/F#SPACE#/IM#SPACE#firefox.exe' )
+return ( x . group ( 0 ) for x in re . finditer ( "[A-Za-z']+" , string ) )
+""",#SPACE#""" . join ( [ '%.2f' ] * len ( x ) )
+print ( re . match ( '(\\d+(\\.\\d+)?)' , '3434.35353' ) . group ( 1 ) )
+df [ 'name' ] . str . replace ( '\\(.*\\)' , '' )
+result = [ x for x in list_a if x [ 0 ] in list_b ]
+print ( [ '' . join ( a ) for a in combinations ( [ 'hel' , 'lo' , 'bye' ] , 2 ) ] )
+[ x for x in li if 'ar' in x [ 2 ] ]
+unsorted_list . sort ( key = lambda x : x [ 3 ] )
+logging . info ( 'test' )
+fig . add_subplot ( 1 , 1 , 1 )
+sorted ( list ( x . items ( ) ) , key = operator . itemgetter ( 1 ) )
+sorted ( dict1 , key = dict1 . get )
+sorted ( d , key = d . get , reverse = True )
+sorted ( list ( d . items ( ) ) , key = lambda x : x [ 1 ] )
+np . einsum ( 'ijk,ikl->ijl' , A , B )
+print ( 'I#SPACE#have:#SPACE#{0.price}' . format ( card ) )
+f . write ( '##SPACE#Data#SPACE#for#SPACE#Class#SPACE#A\n' )
+a = a [ - 1 : ] + a [ : - 1 ]
+datetimevariable . strftime ( '%Y-%m-%d' )
+mixed . replace ( '\r\n' , '\n' ) . replace ( '\r' , '\n' )
+os . path . expanduser ( '~user' )
+T = [ L [ i ] for i in Idx ]
+words = open ( 'myfile' ) . read ( ) . split ( )
+[ [ sum ( [ x [ 1 ] for x in i ] ) ] for i in data ]
+[ sum ( [ x [ 1 ] for x in i ] ) for i in data ]
+Article . objects . annotate ( like_count = Count ( 'likes' ) ) . order_by ( '-like_count' )
+today = datetime . datetime . utcnow ( ) . date ( )
+[ ( a * b ) for a , b in zip ( lista , listb ) ]
+re . findall ( '(?::|;|=)(?:-)?(?:\\)|\\(|D|P)' , s )
+re . match ( '[:;][)(](?![)(])' , str )
+json_string = json . dumps ( [ ob . __dict__ for ob in list_name ] )
+listofzeros = [ 0 ] * n
+stringnamehere . decode ( 'utf-8' , 'ignore' )
+re . findall ( '((?:A|B|C)D)' , 'BDE' )
+dic . setdefault ( key , [ ] ) . append ( value )
+a [ np . argmin ( a [ : , ( 1 ) ] ) ]
+a . update ( b )
+[ { k : v for k , v in d . items ( ) if k != 'mykey1' } for d in mylist ]
+[ dict ( ( k , v ) for k , v in d . items ( ) if k != 'mykey1' ) for d in mylist ]
+numpy . random . random ( ( 3 , 3 ) )
+df [ 'C' ] = df [ 'A' ] + df [ 'B' ]
+[ value for key , value in list ( programs . items ( ) ) if 'new#SPACE#york' in key . lower ( ) ]
+sys . path . append ( '/path/to/main_folder' )
+re . findall ( '\\d+(?=[^[]+$)' , s )
+pickle . load ( open ( 'afile' , 'rb' ) )
+driver . find_element_by_xpath ( 'xpath' ) . click ( )
+ex . groupby ( level = 'A' ) . agg ( lambda x : x . index . get_level_values ( 1 ) . nunique ( ) )
+pd . concat ( map ( pd . DataFrame , iter ( d . values ( ) ) ) , keys = list ( d . keys ( ) ) ) . stack ( #NEWLINE# ) . unstack ( 0 )
+sum ( 1 for i , j in zip ( a , b ) if i != j )
+d = { ( a . lower ( ) , b ) : v for ( a , b ) , v in list ( d . items ( ) ) }
+list_ . sort ( key = lambda x : [ x [ 0 ] , len ( x [ 1 ] ) , x [ 1 ] ] )
+s . strip ( )
+s = s . lstrip ( )
+s = s . rstrip ( )
+s = s . strip ( '#SPACE#\t\n\r' )
+print ( re . sub ( '[\\s+]' , '' , s ) )
+Task . objects . exclude ( prerequisites__status__in = [ 'A' , 'P' , 'F' ] )
+root . configure ( background = 'black' )
+numpy . array ( [ ( key , val ) for key , val in result . items ( ) ] , dtype )
+pd . concat ( [ df_1 , df_2 . sort_values ( 'y' ) ] )
+re . sub ( '(.*)</div>' , '\\1</bad>' , s )
+print ( max ( d , key = lambda x : ( d [ x ] [ 'salary' ] , d [ x ] [ 'bonus' ] ) ) )
+Book . objects . filter ( author__id = 1 ) . filter ( author__id = 2 )
+re . compile ( 'XYZ' , re . IGNORECASE ) . split ( 'fooxyzbar' )
+[ sum ( map ( int , s ) ) for s in example . split ( ) ]
+[ i for i in y if y [ i ] == 1 ]
+c . decode ( 'unicode_escape' )
+pd . melt ( x , id_vars = [ 'farm' , 'fruit' ] , var_name = 'year' , value_name = 'value' )
+default_data [ 'item3' ] = 3
+default_data . update ( { 'item3' : 3 } )
+default_data . update ( { 'item4' : 4 , 'item5' : 5 } )
+l [ : 3 ] + l [ - 3 : ]
+df = df . reset_index ( drop = True )
+[ a [ x ] . append ( b [ x ] ) for x in range ( 3 ) ]
+os . path . realpath ( path )
+set ( L [ 0 ] . f . items ( ) ) . issubset ( set ( a3 . f . items ( ) ) )
+zip ( * np . where ( a == 1 ) )
+np . where ( a == 1 )
+df . columns = df . columns . get_level_values ( 0 )
+x = scipy . matrix ( [ 1 , 2 , 3 ] ) . transpose ( )
+text = re . sub ( '(\\bget\\b)' , '\\1@' , text )
+np . array ( [ np . arange ( 3 ) , np . arange ( 2 , - 1 , - 1 ) , np . ones ( ( 3 , ) ) ] ) . min ( axis = 0 )
+df [ 'new_col' ] = list ( range ( 1 , len ( df ) + 1 ) )
+os . environ [ 'DEBUSSY' ] = '1'
+print ( os . environ [ 'DEBUSSY' ] )
+os . environ [ 'DEBUSSY' ] = '1'
+b . update ( d )
+df [ 'b' ]
+ebar = plt . errorbar ( x , y , yerr = err , ecolor = 'y' )
+results += [ each for each in os . listdir ( folder ) if each . endswith ( '.c' ) ]
+print ( 'Â£' . decode ( 'utf8' ) + '1' )
+re . sub ( '(?<=[a-z])([A-Z])' , '-\\1' , s ) . lower ( )
+os . system ( 'ulimit#SPACE#-s#SPACE#unlimited;#SPACE#some_executable' )
+"""{0:.3g}""" . format ( num )
+numpy . append ( a , a [ 0 ] )
+df . ix [ : , ( df . loc [ 0 ] == 38.15 ) ] . columns
+df2 [ 'revenue' ] = df2 . CET . map ( df1 . set_index ( 'date' ) [ 'revenue' ] )
+json_data = json . loads ( json_string )
+math . cos ( math . radians ( 1 ) )
+sum ( isinstance ( x , int ) for x in a )
+"""used​""" . replace ( '\u200b' , '*' )
+threading . Thread ( target = SudsMove ) . start ( )
+sum ( i * i for i in l )
+sum ( map ( lambda x : x * x , l ) )
+d = dict ( ( key , value ) for key , value in iterable )
+d = { key : value for key , value in iterable }
+d = { k : v for k , v in iterable }
+df . round ( { 'Alabama_exp' : 2 , 'Credit_exp' : 3 } )
+p . setopt ( pycurl . WRITEFUNCTION , lambda x : None )
+print ( random . choice ( words ) )
+max ( d , key = lambda x : d [ x ] [ 'count' ] )
+[ ( int ( x ) if x else 0 ) for x in data . split ( ',' ) ]
+""",""" . join ( x or '0' for x in s . split ( ',' ) )
+re . compile ( '$^' )
+re . compile ( '.\\A|.\\A*|.\\A+' )
+re . compile ( 'a^' )
+df . columns [ df . max ( ) > 0 ]
+yourdatetime . date ( ) == datetime . today ( ) . date ( )
+print ( '\x1b[1m' + 'Hello' )
+re . sub ( '.{20}(.mkv)' , '\\1' , 'unique12345678901234567890.mkv' )
+[ 'a' , 'c' , 'b' , 'obj' ]
+"""#SPACE#""" . join ( mystring . split ( ) )
+print ( '{:.100f}' . format ( 2.345e-67 ) )
+'key1' in dict
+'a' in d
+'c' in d
+if 'key1' in dict : #NEWLINE# #INDENT# pass
+if key in d : #NEWLINE# #INDENT# pass
+Blog . objects . filter ( pk__in = [ 1 , 4 , 7 ] )
+f = open ( 'test/test.pdf' , 'rb' )
+format ( 12345678.46 , ',' ) . replace ( ',' , '#SPACE#' ) . replace ( '.' , ',' )
+pd . merge ( frame_1 , frame_2 , left_on = 'county_ID' , right_on = 'countyid' )
+np . isnan ( a ) . sum ( ) / np . prod ( a . shape )
+sorted ( iter ( cityPopulation . items ( ) ) , key = lambda k_v : k_v [ 1 ] [ 2 ] , reverse = True )
+sorted ( list ( u . items ( ) ) , key = lambda v : v [ 1 ] )
+sorted ( list ( d . items ( ) ) , key = lambda k_v : k_v [ 1 ] , reverse = True )
+sorted ( list ( d . items ( ) ) , key = lambda k_v : k_v [ 1 ] )
+f = open ( os . path . join ( __location__ , 'bundled-resource.jpg' ) )
+f = open ( 'words.txt' , 'rU' )
+{ k : ( float ( d2 [ k ] ) / d1 [ k ] ) for k in d2 }
+{ k : ( d2 [ k ] / d1 [ k ] ) for k in list ( d1 . keys ( ) ) & d2 }
+dict ( ( k , float ( d2 [ k ] ) / d1 [ k ] ) for k in d2 )
+df . to_csv ( filename , date_format = '%Y%m%d' )
+my_dict . pop ( 'key' , None )
+b = np . where ( np . isnan ( a ) , 0 , a )
+subprocess . call ( 'start#SPACE#command#SPACE#-flags#SPACE#arguments' , shell = True )
+subprocess . call ( 'command#SPACE#-flags#SPACE#arguments#SPACE#&' , shell = True )
+f = urllib . request . urlopen ( url , urllib . parse . unquote ( urllib . parse . urlencode #NEWLINE# ( params ) ) )
+"""#SPACE##SPACE##SPACE##SPACE#xyz#SPACE##SPACE##SPACE##SPACE##SPACE#""" . rstrip ( )
+urllib . parse . quote ( s . encode ( 'utf-8' ) )
+urllib . parse . quote_plus ( 'a#SPACE#b' )
+np . array ( map ( int , '100110' ) )
+print ( np . array ( list ( mystr ) , dtype = int ) )
+img = cv2 . imread ( 'messi5.jpg' , 0 )
+lst . sort ( key = lambda x : x [ 2 ] , reverse = True )
+indices = [ i for i , x in enumerate ( my_list ) if x == 'whatever' ]
+subprocess . call ( 'grep#SPACE#-r#SPACE#PASSED#SPACE#*.log#SPACE#|#SPACE#sort#SPACE#-u#SPACE#|#SPACE#wc#SPACE#-l' , shell = True )
+len ( my_text ) - len ( my_text . rstrip ( '?' ) )
+df [ df . columns [ 1 : ] ] . replace ( '[\\$,]' , '' , regex = True ) . astype ( float )
+df1 . merge ( df2 , how = 'left' , on = 'word' )
+print ( '' . join ( '' . join ( i ) for i in zip ( a2 , a1 ) ) + a [ - 1 ] if len ( a ) % 2 else '' )
+root . attributes ( '-topmost' , True )
+root . lift ( )
+hex ( int ( '' . join ( [ str ( int ( b ) ) for b in walls ] ) , 2 ) )
+hex ( sum ( b << i for i , b in enumerate ( reversed ( walls ) ) ) )
+print ( ( 'Total#SPACE#score#SPACE#for' , name , 'is' , score ) )
+print ( 'Total#SPACE#score#SPACE#for#SPACE#{}#SPACE#is#SPACE#{}' . format ( name , score ) )
+print ( 'Total#SPACE#score#SPACE#for#SPACE#%s#SPACE#is#SPACE#%s#SPACE##SPACE#' % ( name , score ) )
+print ( ( 'Total#SPACE#score#SPACE#for' , name , 'is' , score ) )
+url ( '^$' , TemplateView . as_view ( template_name = 'your_template.html' ) )
+df [ df [ 'A' ] . isin ( [ 3 , 6 ] ) ]
+instance . __class__ . __name__
+system ( '/path/to/my/venv/bin/python#SPACE#myscript.py' )
+Employees . objects . values_list ( 'eng_name' , flat = True )
+re . findall ( '\\d|\\d,\\d\\)' , '6,7)' )
+input ( 'Press#SPACE#Enter#SPACE#to#SPACE#continue...' )
+"""ABC""" . encode ( 'hex' )
+db . Doc . update ( { '_id' : b [ '_id' ] } , { '$set' : { 'geolocCountry' : myGeolocCountry } } )
+re . sub ( 'l+' , 'l' , 'lollll' )
+rows = soup . findAll ( 'tr' ) [ 4 : : 5 ]
+plt . gca ( ) . invert_xaxis ( )
+plt . gca ( ) . invert_yaxis ( )
+pd . concat ( [ GOOG , AAPL ] , keys = [ 'GOOG' , 'AAPL' ] , axis = 1 )
+return HttpResponse ( json . dumps ( response_data ) , content_type = 'application/json' )
+myString . decode ( 'string_escape' )
+hashlib . md5 ( open ( 'filename.exe' , 'rb' ) . read ( ) ) . hexdigest ( )
+[ k for k , v in d . items ( ) if v == desired_value ]
+{ k for d in LoD for k in list ( d . keys ( ) ) }
+set ( [ i for s in [ list ( d . keys ( ) ) for d in LoD ] for i in s ] )
+[ i for s in [ list ( d . keys ( ) ) for d in LoD ] for i in s ]
+keys , values = zip ( * list ( d . items ( ) ) )
+int ( Decimal ( s ) )
+int ( s . split ( '.' ) [ 0 ] )
+numpy . in1d ( b , a ) . all ( )
+numpy . array ( [ ( x in a ) for x in b ] )
+networkx . draw_networkx_labels ( G , pos , labels )
+y = [ row [ : ] for row in x ]
+X = numpy . loadtxt ( 'somefile.csv' , delimiter = ',' )
+matching = [ s for s in some_list if 'abc' in s ]
+df . to_csv ( 'mydf.tsv' , sep = '\t' )
+random . sample ( list ( range ( 100 ) ) , 10 )
+s . rsplit ( ',' , 1 )
+all ( isinstance ( x , int ) for x in lst )
+all ( isinstance ( x , int ) for x in lst )
+line . strip ( )
+driver . execute_script ( 'window.scrollTo(0,#SPACE#Y)' )
+driver . execute_script ( 'window.scrollTo(0,#SPACE#document.body.scrollHeight);' )
+datetime . datetime . combine ( dateobject , datetime . time ( ) )
+print ( any ( x in a for x in b ) )
+scipy . misc . imsave ( 'outfile.jpg' , image_array )
+item = re . sub ( '#SPACE#?\\([^)]+\\)' , '' , item )
+item = re . sub ( '#SPACE#?\\(\\w+\\)' , '' , item )
+item = re . sub ( '#SPACE#\\(\\w+\\)' , '' , item )
+len ( set ( list1 ) . intersection ( list2 ) ) > 0
+i = int ( s , 16 )
+int ( '0xff' , 16 )
+int ( 'FFFF' , 16 )
+ast . literal_eval ( '0xdeadbeef' )
+int ( 'deadbeef' , 16 )
+os . system ( 'screencapture#SPACE#screen.png' )
+driver . set_window_size ( 1400 , 1000 )
+unicodedata . normalize ( 'NFKD' , 'música' ) . encode ( 'ascii' , 'ignore' )
+pandas . concat ( [ df1 , df2 ] ) . drop_duplicates ( ) . reset_index ( drop = True )
+a = numpy . fromfile ( 'filename' , dtype = numpy . float32 )
+subprocess . call ( 'mv#SPACE#/home/somedir/subdir/*#SPACE#somedir/' , shell = True )
+subprocess . call ( 'mv#SPACE#/home/somedir/subdir/*#SPACE#somedir/' , shell = True )
+print ( '▲' . encode ( 'utf-8' ) )
+difflib . SequenceMatcher ( None , file1 . read ( ) , file2 . read ( ) )
+dict ( ( k , int ( v ) ) for k , v in ( e . split ( '#SPACE#-#SPACE#' ) for e in s . split ( ',' ) ) )
+all ( i in ( 1 , 2 , 3 , 4 , 5 ) for i in ( 1 , 6 ) )
+df [ 'Date' ] . map ( lambda t : t . date ( ) ) . unique ( )
+"""{:>7s}""" . format ( mystring )
+open ( 'ComponentReport-DJI.xls' , 'rb' ) . read ( 200 )
+df . sort_values ( [ 'b' , 'c' ] , ascending = [ True , False ] , inplace = True )
+df . sort_values ( [ 'a' , 'b' ] , ascending = [ True , False ] )
+df1 . sort ( [ 'a' , 'b' ] , ascending = [ True , False ] , inplace = True )
+df . sort ( [ 'a' , 'b' ] , ascending = [ True , False ] )
+redirect ( 'Home.views.index' )
+[ x for x in a if x not in [ 2 , 3 , 7 ] ]
+out = '' . join ( c for c in asking if c not in ( '!' , '.' , ':' ) )
+soup . find ( 'meta' , { 'name' : 'City' } ) [ 'content' ]
+urllib . parse . unquote ( '%0a' )
+urllib . parse . unquote ( url ) . decode ( 'utf8' )
+del lst [ : ]
+del lst1 [ : ]
+lst [ : ] = [ ]
+alist [ : ] = [ ]
+s . reset_index ( 0 ) . reset_index ( drop = True )
+elems [ 0 ] . getText ( ) . encode ( 'utf-8' )
+[ ( y - x ) for x , y in zip ( L , L [ 1 : ] ) ]
+print ( re . search ( '\\bLOG_ADDR\\s+(\\S+)' , line ) . group ( 1 ) )
+globals ( ) . update ( importlib . import_module ( 'some.package' ) . __dict__ )
+"""""" . join ( [ 'a' , 'b' , 'c' , 'd' ] )
+url . split ( '&' )
+od = collections . OrderedDict ( sorted ( d . items ( ) ) )
+OrderedDict ( sorted ( list ( d . items ( ) ) , key = lambda t : t [ 0 ] ) )
+response = requests . put ( url , data = json . dumps ( data ) , headers = headers )
+re . sub ( '[\\W_]+' , '' , s )
+[ ( x + y ) for x in l2 for y in l1 ]
+dict ( [ x . split ( '=' ) for x in s . split ( ) ] )
+my_list . pop ( 2 )
+s = s . replace ( 'M' , '' )
+newstr = oldstr . replace ( 'M' , '' )
+sum ( x * y for x , y in zip ( a , b ) )
+list ( x * y for x , y in list ( zip ( a , b ) ) )
+sum ( i * j for i , j in zip ( a , b ) )
+sum ( x * y for x , y in list ( zip ( a , b ) ) )
+f . write ( open ( 'xxx.mp4' , 'rb' ) . read ( ) )
+new_list = [ ( x + 1 ) for x in my_list ]
+[ x for x in j if x >= 5 ]
+plt . plot ( list ( range ( 10 ) ) , '--bo' )
+plt . plot ( list ( range ( 10 ) ) , linestyle = '--' , marker = 'o' , color = 'b' )
+[ i . split ( '\t' , 1 ) [ 0 ] for i in l ]
+myList = [ i . split ( '\t' ) [ 0 ] for i in myList ]
+sum ( your_list )
+ForkedPdb ( ) . set_trace ( )
+result = { k : d2 . get ( v ) for k , v in list ( d1 . items ( ) ) }
+datetime . datetime . now ( ) + datetime . timedelta ( days = 1 , hours = 3 )
+[ int ( s [ i : i + 3 ] , 2 ) for i in range ( 0 , len ( s ) , 3 ) ]
+dict ( ( v , k ) for k , v in my_dict . items ( ) )
+print ( sorted ( L , key = lambda x : int ( x . split ( '.' ) [ 2 ] ) ) )
+any ( d [ 'name' ] == 'Test' for d in label )
+a [ : ] = [ x for x in a if x != [ 1 , 1 ] ]
+[ x for x in a if x != [ 1 , 1 ] ]
+b = { a [ i ] : a [ i + 1 ] for i in range ( 0 , len ( a ) , 2 ) }
+len ( set ( a ) ) == len ( a )
+print ( hashlib . md5 ( open ( full_path , 'rb' ) . read ( ) ) . hexdigest ( ) )
+sorted ( list ( data . items ( ) ) , key = lambda x : x [ 1 ] [ 0 ] )
+"""""" . join ( x . upper ( ) if random . randint ( 0 , 1 ) else x for x in s )
+os . system ( 'GREPDB="echo#SPACE#123";#SPACE#/bin/bash#SPACE#-c#SPACE#"$GREPDB"' )
+os . system ( '/bin/bash#SPACE#-c#SPACE#"echo#SPACE#hello#SPACE#world"' )
+getattr ( test , a_string )
+Image . open ( 'pathToFile' ) . show ( )
+"""didn't""" . replace ( "'" , '' )
+files . sort ( key = file_number )
+sentence . replace ( '#SPACE#' , '' )
+pattern = re . compile ( '\\s+' ) #NEWLINE# sentence = re . sub ( pattern , '' , sentence )
+sentence . strip ( )
+sentence = re . sub ( '\\s+' , '' , sentence , flags = re . UNICODE )
+sentence = '' . join ( sentence . split ( ) )
+sum ( my_counter . values ( ) )
+np . sqrt ( ( ( A - B ) ** 2 ) . sum ( - 1 ) )
+levels = [ { } , { } , { } ]
+weekly = [ sum ( visitors [ x : x + 7 ] ) for x in range ( 0 , len ( daily ) , 7 ) ]
+del d [ key ]
+{ i : a [ i ] for i in a if i != 0 }
+lol . pop ( 'hello' )
+del r [ key ]
+np . linalg . solve ( np . dot ( a . T , a ) , np . dot ( a . T , b ) )
+pd . concat ( [ df . drop ( 'b' , axis = 1 ) , pd . DataFrame ( df [ 'b' ] . tolist ( ) ) ] , axis = 1 )
+for i in range ( 0 , 10 , 2 ) : #NEWLINE# #INDENT# pass
+for i in mylist [ : : 2 ] : #NEWLINE# #INDENT# pass
+[ { 'content' : x [ 'content' ] . lower ( ) } for x in messages ]
+"""#SPACE#""" . join ( my_list )
+re . sub ( '(http://\\S+|\\S*[^\\w\\s]\\S*)' , '' , a )
+str ( n ) == str ( n ) [ : : - 1 ]
+ftp . storbinary ( 'STOR#SPACE#myfile.txt' , open ( 'myfile.txt' , 'rb' ) )
+re . sub ( '.*I' , 'I' , stri )
+int ( '1,000,000' . replace ( ',' , '' ) )
+pd . merge ( df1 , df2 , left_index = True , right_index = True , how = 'outer' )
+pandas . concat ( [ df1 , df2 ] , axis = 1 )
+all ( dict . values ( ) )
+df . c_contofficeID . str . replace ( '^12(?=.{4}$)' , '' )
+L [ : : - 1 ]
+reversed ( array )
+L . reverse ( )
+list ( reversed ( array ) )
+[ tup [ 0 ] for tup in A ]
+newcontents = contents . replace ( 'a' , 'e' ) . replace ( 's' , '3' )
+json . dumps ( [ dict ( list ( row . items ( ) ) ) for row in rs ] )
+config_file = os . path . expanduser ( '~/foo.ini' )
+request . params . getall ( 'c' )
+np . corrcoef ( x )
+print ( max ( 1 , 2 , 3 ) )
+self . request . get ( 'var_name' )
+a [ 'x' ] . apply ( lambda x , y : x + y , args = ( 100 , ) )
+User . objects . order_by ( '-pet__age' ) [ : 10 ]
+time . sleep ( 5 )
+time . sleep ( 60 )
+sleep ( 0.1 )
+time . sleep ( 60 )
+time . sleep ( 0.1 )
+[ x for x in my_list if not any ( c . isdigit ( ) for c in x ) ]
+df [ 'state' ] . apply ( lambda x : x [ len ( x ) / 2 - 1 : len ( x ) / 2 + 1 ] )
+plt . grid ( True )
