@@ -59,6 +59,7 @@ def main():
             intent_idx2word[i] = r[0]
             intent_word2idx[r[0]] = i
             i += 1
+        i = Constants.PAD
         intent_idx2word[i] = Constants.PAD_WORD
         intent_word2idx[Constants.PAD_WORD] = i
 
@@ -71,6 +72,7 @@ def main():
             snippet_idx2word[i] = r[0]
             snippet_word2idx[r[0]] = i
             i += 1
+        i = Constants.PAD
         snippet_idx2word[i] = Constants.PAD_WORD
         snippet_word2idx[Constants.PAD_WORD] = i
 

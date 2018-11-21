@@ -19,12 +19,10 @@ def get_sinusoid_encoding_table(n_position, d_hid, padding_idx=None):
 
     def get_posi_angle_vec(position):
         return [cal_angle(position, hid_j) for hid_j in range(d_hid)]
-
     sinusoid_table = np.array([get_posi_angle_vec(pos_i) for pos_i in range(n_position)])
 
     sinusoid_table[:, 0::2] = np.sin(sinusoid_table[:, 0::2])  # dim 2i
     sinusoid_table[:, 1::2] = np.cos(sinusoid_table[:, 1::2])  # dim 2i+1
-
     if padding_idx is not None:
         # zero vector for padding dimension
         sinusoid_table[padding_idx] = 0.
@@ -63,7 +61,7 @@ class Encoder(nn.Module):
         super().__init__()
 
         n_position = len_max_seq + 1
-
+        print(n_position)
         self.src_word_emb = nn.Embedding(
             n_src_vocab, d_word_vec, padding_idx=Constants.PAD)
 
@@ -157,7 +155,7 @@ class Transformer(nn.Module):
 
     def __init__(
             self,
-            n_src_vocab, n_tgt_vocab, len_max_seq,
+            n_src_vocab, n_tgt_vocab, len_max_seq_inp,len_max_seq_out,
             d_word_vec=512, d_model=512, d_inner=2048,
             n_layers=6, n_head=8, d_k=64, d_v=64, dropout=0.1,
             tgt_emb_prj_weight_sharing=True,
@@ -166,13 +164,13 @@ class Transformer(nn.Module):
         super().__init__()
 
         self.encoder = Encoder(
-            n_src_vocab=n_src_vocab, len_max_seq=len_max_seq,
+            n_src_vocab=n_src_vocab, len_max_seq=len_max_seq_inp,
             d_word_vec=d_word_vec, d_model=d_model, d_inner=d_inner,
             n_layers=n_layers, n_head=n_head, d_k=d_k, d_v=d_v,
             dropout=dropout)
 
         self.decoder = Decoder(
-            n_tgt_vocab=n_tgt_vocab, len_max_seq=len_max_seq,
+            n_tgt_vocab=n_tgt_vocab, len_max_seq=len_max_seq_out,
             d_word_vec=d_word_vec, d_model=d_model, d_inner=d_inner,
             n_layers=n_layers, n_head=n_head, d_k=d_k, d_v=d_v,
             dropout=dropout)

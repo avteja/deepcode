@@ -111,6 +111,7 @@ def eval_epoch(model, validation_data, device):
             gold = tgt_seq[:, 1:]
 
             # forward
+            #print(src_seq,src_pos,tgt_seq,tgt_seq)
             pred = model(src_seq, src_pos, tgt_seq, tgt_pos)
             loss, n_correct = cal_performance(pred, gold, smoothing=False)
 
@@ -225,8 +226,9 @@ def main():
 
     #========= Loading Dataset =========#
     data = torch.load(opt.data)
-    opt.max_token_seq_len = data['settings'].max_token_seq_len
-
+    #opt.max_token_seq_len = data['settings'].max_token_seq_len
+    opt.inp_seq_max_len = 2*data['settings'].train_max_input_len
+    opt.out_seq_max_len = 2*data['settings'].train_max_output_len
     training_data, validation_data = prepare_dataloaders(data, opt)
 
     opt.src_vocab_size = training_data.dataset.src_vocab_size
@@ -243,7 +245,8 @@ def main():
     transformer = Transformer(
         opt.src_vocab_size,
         opt.tgt_vocab_size,
-        opt.max_token_seq_len,
+        opt.inp_seq_max_len,
+        opt.out_seq_max_len,
         tgt_emb_prj_weight_sharing=opt.proj_share_weight,
         emb_src_tgt_weight_sharing=opt.embs_share_weight,
         d_k=opt.d_k,
