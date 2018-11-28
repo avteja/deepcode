@@ -19,6 +19,8 @@ import os
 
 import sentencepiece as spm
 
+from transformer.Translator import Translator
+
 sp = spm.SentencePieceProcessor()
 
 def cal_performance(pred, gold, smoothing=False):
@@ -48,7 +50,6 @@ def print_preds(pred, batch_size, outfile):
                 break
         out = sp.DecodeIds(indices)
         outfile.write(out + '\n')
-
 
 def cal_loss(pred, gold, smoothing):
     ''' Calculate cross entropy loss, apply label smoothing if needed. '''
@@ -114,7 +115,7 @@ def train_epoch(model, training_data, optimizer, device, smoothing):
     accuracy = n_word_correct/n_word_total
     return loss_per_word, accuracy
 
-def eval_epoch(model, validation_data, device, split = 'dev'):
+def eval_epoch(model, validation_data, device):
     ''' Epoch operation in evaluation phase '''
 
     model.eval()
@@ -122,8 +123,6 @@ def eval_epoch(model, validation_data, device, split = 'dev'):
     total_loss = 0
     n_word_total = 0
     n_word_correct = 0
-
-    outfile = open('results/mypreds.hyp', 'w')
 
     with torch.no_grad():
         for batch in tqdm(
@@ -140,8 +139,6 @@ def eval_epoch(model, validation_data, device, split = 'dev'):
 
             pred = model(src_seq, src_pos, tgt_seq, tgt_pos)
             
-            print_preds(pred, batch_size, outfile)
-            
             loss, n_correct = cal_performance(pred, gold, smoothing=False)
 
             # note keeping
@@ -152,13 +149,23 @@ def eval_epoch(model, validation_data, device, split = 'dev'):
             n_word_total += n_word
             n_word_correct += n_correct
 
-    outfile.close()
-    os.system("sh calcBLEU.sh " + split)
-
-
     loss_per_word = total_loss/n_word_total
     accuracy = n_word_correct/n_word_total
     return loss_per_word, accuracy
+
+def eval_bleu_score(opt, model, data, device, split = 'dev'):
+    translator = Translator(opt, model, load_from_file = False)
+    outfile = open('results/mypreds.hyp', 'w')
+    for batch in tqdm(data, mininterval=2, desc='  - (Validation)', leave=False):
+        src_seq, src_pos, tgt_seq, tgt_pos = map(lambda x: x.to(device), batch)
+        all_hyp, all_scores = translator.translate_batch(src_seq, src_pos)
+        for idx_seqs in all_hyp:
+            for idx_seq in idx_seqs:
+                pred = idx_seq
+                out = sp.DecodeIds(pred)
+                outfile.write(out + '\n')
+    outfile.close()
+    os.system("sh calcBLEU.sh " + split)
 
 def train(model, training_data, validation_data, test_data, optimizer, device, opt):
     ''' Start training '''
@@ -190,7 +197,7 @@ def train(model, training_data, validation_data, test_data, optimizer, device, o
                   elapse=(time.time()-start)/60))
 
         start = time.time()
-        valid_loss, valid_accu = eval_epoch(model, validation_data, device, 'dev')
+        valid_loss, valid_accu = eval_epoch(model, validation_data, device)
         print('  - (Validation) ppl: {ppl: 8.5f}, accuracy: {accu:3.3f} %, '\
                 'elapse: {elapse:3.3f} min'.format(
                     ppl=math.exp(min(valid_loss, 100)), accu=100*valid_accu,
@@ -198,11 +205,7 @@ def train(model, training_data, validation_data, test_data, optimizer, device, o
 
         valid_accus += [valid_accu]
 
-        test_loss, test_accu = eval_epoch(model, test_data, device, 'test')
-        print('  - (Test) ppl: {ppl: 8.5f}, accuracy: {accu:3.3f} %, '\
-                'elapse: {elapse:3.3f} min'.format(
-                    ppl=math.exp(min(test_loss, 100)), accu=100*test_accu,
-                    elapse=(time.time()-start)/60))
+        eval_bleu_score(opt, model, validation_data, device, split = 'dev')
 
         model_state_dict = model.state_dict()
         checkpoint = {
@@ -260,6 +263,13 @@ def main():
     parser.add_argument('-no_cuda', action='store_true')
     parser.add_argument('-label_smoothing', action='store_true')
 
+    # For bleu eval
+    parser.add_argument('-beam_size', type=int, default=5, help='Beam size')
+    parser.add_argument('-n_best', type=int, default=1,
+                        help="""If verbose is set, will output the n_best
+                        decoded sentences""")
+
+
 
     opt = parser.parse_args()
     opt.cuda = not opt.no_cuda
@@ -270,9 +280,11 @@ def main():
 
     #========= Loading Dataset =========#
     data = torch.load(opt.data)
-    #opt.max_token_seq_len = data['settings'].max_token_seq_len
     opt.inp_seq_max_len = 4*data['settings'].train_max_input_len
     opt.out_seq_max_len = 4*data['settings'].train_max_output_len
+    
+    opt.max_token_seq_len = opt.out_seq_max_len
+
     training_data, validation_data, test_data = prepare_dataloaders(data, opt)
 
     opt.src_vocab_size = training_data.dataset.src_vocab_size

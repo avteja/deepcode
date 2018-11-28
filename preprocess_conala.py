@@ -16,6 +16,10 @@ def read_instances_from_file(sp, inst_file, word2idx):
         for sent in f:
             sent = sent.strip()
             ids = [bos_index] + sp.EncodeAsIds(sent) + [eos_index]
+            if 0 in ids:
+                print ('unk present')
+                print (sent)
+                print (ids)
             pieces = sp.EncodeAsPieces(sent)
             token_insts += [ids]
 
