@@ -205,7 +205,8 @@ def train(model, training_data, validation_data, test_data, optimizer, device, o
 
         valid_accus += [valid_accu]
 
-        eval_bleu_score(opt, model, validation_data, device, split = 'dev')
+        if (epoch_i+1)%10 == 0:
+            eval_bleu_score(opt, model, test_data, device, split = 'test')
 
         model_state_dict = model.state_dict()
         checkpoint = {
@@ -283,14 +284,14 @@ def main():
     opt.inp_seq_max_len = 4*data['settings'].train_max_input_len
     opt.out_seq_max_len = 4*data['settings'].train_max_output_len
     
-    opt.max_token_seq_len = opt.out_seq_max_len
+    opt.max_token_seq_len = int(opt.out_seq_max_len/4)
 
     training_data, validation_data, test_data = prepare_dataloaders(data, opt)
 
     opt.src_vocab_size = training_data.dataset.src_vocab_size
     opt.tgt_vocab_size = training_data.dataset.tgt_vocab_size
 
-    print(opt.inp_seq_max_len,opt.src_vocab_size)
+    print(opt.inp_seq_max_len,opt.out_seq_max_len,opt.src_vocab_size,opt.tgt_vocab_size)
 
     #========= Preparing Model =========#
     if opt.embs_share_weight:
@@ -344,7 +345,7 @@ def prepare_dataloaders(data, opt):
             tgt_word2idx=data['dict']['tgt'],
             src_insts=data['valid']['src'],
             tgt_insts=data['valid']['tgt']),
-        num_workers=1,
+        num_workers=2,
         batch_size=opt.batch_size,
         collate_fn=paired_collate_fn)
 
@@ -354,7 +355,7 @@ def prepare_dataloaders(data, opt):
             tgt_word2idx=data['dict']['tgt'],
             src_insts=data['test']['src'],
             tgt_insts=data['test']['tgt']),
-        num_workers=1,
+        num_workers=2,
         batch_size=opt.batch_size,
         collate_fn=paired_collate_fn)
 

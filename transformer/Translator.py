@@ -156,7 +156,8 @@ class Translator(object):
 
             #-- Decode
             for len_dec_seq in range(1, self.model_opt.max_token_seq_len + 1):
-
+                # if len_dec_seq%100 == 0:
+                #     print(len_dec_seq)
                 active_inst_idx_list = beam_decode_step(
                     inst_dec_beams, len_dec_seq, src_seq, src_enc, inst_idx_to_position_map, n_bm)
 
