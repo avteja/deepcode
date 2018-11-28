@@ -35,8 +35,8 @@ def main():
     parser.add_argument('-train_snippet')
     parser.add_argument('-valid_intent')
     parser.add_argument('-valid_snippet')
-    # parser.add_argument('-test_intent')
-    # parser.add_argument('-test_snippet')
+    parser.add_argument('-test_intent')
+    parser.add_argument('-test_snippet')
     parser.add_argument('-intent_model')
     parser.add_argument('-snippet_model')
     parser.add_argument('-intent_vocab')
@@ -79,20 +79,22 @@ def main():
     # Training set
     train_intent_insts = read_instances_from_file(sp_intent, opt.train_intent, intent_word2idx)
     valid_intent_insts = read_instances_from_file(sp_intent, opt.valid_intent, intent_word2idx)
-    # test_intent_insts = read_instances_from_file(sp_intent, opt.test_intent, intent_word2idx)
+    test_intent_insts = read_instances_from_file(sp_intent, opt.test_intent, intent_word2idx)
 
     train_snippet_insts = read_instances_from_file(sp_snippet, opt.train_snippet, snippet_word2idx)
     valid_snippet_insts = read_instances_from_file(sp_snippet, opt.valid_snippet, snippet_word2idx)
-    # test_snippet_insts = read_instances_from_file(sp_snippet, opt.test_snippet, snippet_word2idx)
+    test_snippet_insts = read_instances_from_file(sp_snippet, opt.test_snippet, snippet_word2idx)
 
     opt.train_max_input_len = max([len(intent) for intent in train_intent_insts])
     opt.train_max_output_len = max([len(snippet) for snippet in train_snippet_insts])
     opt.valid_max_input_len = max([len(intent) for intent in valid_intent_insts])
     opt.valid_max_output_len = max([len(snippet) for snippet in valid_snippet_insts])
+    opt.test_max_input_len = max([len(intent) for intent in test_intent_insts])
+    opt.test_max_output_len = max([len(snippet) for snippet in test_snippet_insts])
 
     assert len(train_intent_insts) == len(train_snippet_insts), '[Error] The training instance count is not equal.'
     assert len(valid_intent_insts) == len(valid_snippet_insts), '[Error] The valid instance count is not equal.'
-    # assert len(test_intent_insts) == len(test_snippet_insts), '[Error] The test instance count is not equal.'
+    assert len(test_intent_insts) == len(test_snippet_insts), '[Error] The test instance count is not equal.'
 
     data = {
         'settings': opt,
@@ -104,7 +106,10 @@ def main():
             'tgt': train_snippet_insts},
         'valid': {
             'src': valid_intent_insts,
-            'tgt': valid_snippet_insts}}
+            'tgt': valid_snippet_insts},
+        'test': {
+            'src': test_intent_insts,
+            'tgt': test_snippet_insts}}
 
     print('[Info] Dumping the processed data to pickle file', opt.save_data)
     torch.save(data, opt.save_data)

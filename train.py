@@ -37,7 +37,6 @@ def cal_performance(pred, gold, smoothing=False):
 def print_preds(pred, batch_size, outfile):
     pred = pred.view(batch_size,-1,pred.size(1))
     pred = pred.max(2)[1]
-    # print(pred.size())
 
     for b in range(batch_size):
         sent = pred[b,:]
@@ -115,7 +114,7 @@ def train_epoch(model, training_data, optimizer, device, smoothing):
     accuracy = n_word_correct/n_word_total
     return loss_per_word, accuracy
 
-def eval_epoch(model, validation_data, device):
+def eval_epoch(model, validation_data, device, split = 'dev'):
     ''' Epoch operation in evaluation phase '''
 
     model.eval()
@@ -154,14 +153,14 @@ def eval_epoch(model, validation_data, device):
             n_word_correct += n_correct
 
     outfile.close()
-    os.system("sh calcBLEU.sh")
+    os.system("sh calcBLEU.sh " + split)
 
 
     loss_per_word = total_loss/n_word_total
     accuracy = n_word_correct/n_word_total
     return loss_per_word, accuracy
 
-def train(model, training_data, validation_data, optimizer, device, opt):
+def train(model, training_data, validation_data, test_data, optimizer, device, opt):
     ''' Start training '''
 
     log_train_file = None
@@ -191,13 +190,19 @@ def train(model, training_data, validation_data, optimizer, device, opt):
                   elapse=(time.time()-start)/60))
 
         start = time.time()
-        valid_loss, valid_accu = eval_epoch(model, validation_data, device)
+        valid_loss, valid_accu = eval_epoch(model, validation_data, device, 'dev')
         print('  - (Validation) ppl: {ppl: 8.5f}, accuracy: {accu:3.3f} %, '\
                 'elapse: {elapse:3.3f} min'.format(
                     ppl=math.exp(min(valid_loss, 100)), accu=100*valid_accu,
                     elapse=(time.time()-start)/60))
 
         valid_accus += [valid_accu]
+
+        test_loss, test_accu = eval_epoch(model, test_data, device, 'test')
+        print('  - (Test) ppl: {ppl: 8.5f}, accuracy: {accu:3.3f} %, '\
+                'elapse: {elapse:3.3f} min'.format(
+                    ppl=math.exp(min(test_loss, 100)), accu=100*test_accu,
+                    elapse=(time.time()-start)/60))
 
         model_state_dict = model.state_dict()
         checkpoint = {
@@ -266,9 +271,9 @@ def main():
     #========= Loading Dataset =========#
     data = torch.load(opt.data)
     #opt.max_token_seq_len = data['settings'].max_token_seq_len
-    opt.inp_seq_max_len = 2*data['settings'].train_max_input_len
-    opt.out_seq_max_len = 2*data['settings'].train_max_output_len
-    training_data, validation_data = prepare_dataloaders(data, opt)
+    opt.inp_seq_max_len = 4*data['settings'].train_max_input_len
+    opt.out_seq_max_len = 4*data['settings'].train_max_output_len
+    training_data, validation_data, test_data = prepare_dataloaders(data, opt)
 
     opt.src_vocab_size = training_data.dataset.src_vocab_size
     opt.tgt_vocab_size = training_data.dataset.tgt_vocab_size
@@ -305,7 +310,7 @@ def main():
             betas=(0.9, 0.98), eps=1e-09),
         opt.d_model, opt.n_warmup_steps)
 
-    train(transformer, training_data, validation_data, optimizer, device ,opt)
+    train(transformer, training_data, validation_data, test_data, optimizer, device ,opt)
 
 
 def prepare_dataloaders(data, opt):
@@ -330,7 +335,18 @@ def prepare_dataloaders(data, opt):
         num_workers=1,
         batch_size=opt.batch_size,
         collate_fn=paired_collate_fn)
-    return train_loader, valid_loader
+
+    test_loader = torch.utils.data.DataLoader(
+        TranslationDataset(
+            src_word2idx=data['dict']['src'],
+            tgt_word2idx=data['dict']['tgt'],
+            src_insts=data['test']['src'],
+            tgt_insts=data['test']['tgt']),
+        num_workers=1,
+        batch_size=opt.batch_size,
+        collate_fn=paired_collate_fn)
+
+    return train_loader, valid_loader, test_loader
 
 
 if __name__ == '__main__':
