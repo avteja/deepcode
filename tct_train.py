@@ -74,7 +74,7 @@ def cal_loss(pred, gold, smoothing):
     return loss
 
 
-def train_epoch(model, model2, training_data, optimizer, device, smoothing):
+def train_epoch(model, model2, training_data, optimizer, device, smoothing, opt):
     ''' Epoch operation in training phase'''
     #TODO
     model.train()
@@ -108,7 +108,7 @@ def train_epoch(model, model2, training_data, optimizer, device, smoothing):
         code_loss, n_code_correct = cal_performance(pred, gold_code, smoothing=smoothing)
         text_loss, n_text_correct = cal_performance(pred2, gold_text, smoothing = smoothing)
         
-        (code_loss + text_loss).backward()
+        (code_loss + opt.alpha*text_loss).backward()
 
         # update parameters
         optimizer.step_and_update_lr()
@@ -191,7 +191,7 @@ def eval_epoch(model, model2, validation_data, device):
 def eval_bleu_score(opt, model, data, device, split = 'dev'):
     translator = Translator(opt, model, load_from_file = False)
     outfile = open('results/mypreds.hyp', 'w')
-    for batch in tqdm(data, mininterval=2, desc='  - (Validation)', leave=False):
+    for batch in tqdm(data, mininterval=2, desc='  - (Test)', leave=False):
         src_seq, src_pos, tgt_seq, tgt_pos = map(lambda x: x.to(device), batch)
         all_hyp, all_scores = translator.translate_batch(src_seq, src_pos)
         for idx_seqs in all_hyp:
@@ -225,7 +225,7 @@ def train(model, model2, training_data, validation_data, test_data, optimizer, d
 
         start = time.time()
         train_code_loss, train_text_loss, train_code_accu, train_text_accu = train_epoch(
-            model, model2, training_data, optimizer, device, smoothing=opt.label_smoothing)
+            model, model2, training_data, optimizer, device, smoothing=opt.label_smoothing, opt=opt)
         print('  - (Training)   code_loss: {code_loss: 8.5f}, code_ppl: {code_ppl: 8.5f}, code_accuracy: {code_accu:3.3f} %, text_loss: {text_loss: 8.5f}, text_ppl: {text_ppl: 8.5f}, text_accuracy: {text_accu:3.3f} %, '\
               'elapse: {elapse:3.3f} min'.format(
                   code_loss=train_code_loss, code_ppl=math.exp(min(train_code_loss, 100)), code_accu=100*train_code_accu, text_loss=train_text_loss, text_ppl=math.exp(min(train_text_loss, 100)), text_accu=100*train_text_accu,
@@ -241,7 +241,7 @@ def train(model, model2, training_data, validation_data, test_data, optimizer, d
 
         valid_code_accus += [valid_code_accu]
 
-        if (epoch_i+1)%10 == 0:
+        if (epoch_i+1)%5 == 0:
             eval_bleu_score(opt, model, test_data, device, split = 'test')
 
         model_state_dict = model.state_dict()
@@ -307,6 +307,9 @@ def main():
     parser.add_argument('-n_best', type=int, default=1,
                         help="""If verbose is set, will output the n_best
                         decoded sentences""")
+
+    # New loss weighting
+    parser.add_argument('-alpha', type=float,default=1.0, help='Weighting loss')
 
 
 
