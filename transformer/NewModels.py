@@ -135,6 +135,7 @@ class Decoder2(nn.Module):
         dec_output = self.tgt_word_emb(tgt_seq) + self.position_enc(tgt_pos)
 
         for dec_layer in self.layer_stack:
+            #print(dec_output.size(),enc_output.size(),non_pad_mask.size(),slf_attn_mask.size(),dec_enc_attn_mask.size())
             dec_output, dec_slf_attn, dec_enc_attn = dec_layer(
                 dec_output, enc_output,
                 non_pad_mask=non_pad_mask,
@@ -196,10 +197,17 @@ class Transformer2(nn.Module):
 
     def forward(self, src_seq, src_pos, tgt_seq, tgt_pos, new_enc_slf_attn_mask, new_dec_slf_attn_mask, new_dec_subsequent_mask, new_enc_non_pad_mask, new_dec_non_pad_mask, new_dec_enc_attn_mask):
 
-        tgt_seq, tgt_pos = tgt_seq[:, :-1], tgt_pos[:, :-1]
+        #tgt_seq, tgt_pos = tgt_seq[:, :-1], tgt_pos[:, :-1]
+        
+        #print(src_pos.size(),src_seq.size())
+        #src_seq = torch.cat((torch.zeros(src_seq.size(0),1,src_seq.size(2)).cuda(),src_seq), dim=1) # jugaad
+        #src_pos = src_pos[:, :-1] # jugaad
 
         enc_output, *_ = self.encoder(src_seq, src_pos, new_enc_slf_attn_mask, new_enc_non_pad_mask)
         dec_output, *_ = self.decoder(tgt_seq, tgt_pos, src_seq, enc_output, new_dec_slf_attn_mask, new_dec_subsequent_mask, new_dec_non_pad_mask, new_dec_enc_attn_mask)
         seq_logit = self.tgt_word_prj(dec_output) * self.x_logit_scale
+
+        seq_logit = seq_logit[:,:-1,:].contiguous()#jugaad
+
         return seq_logit.view(-1, seq_logit.size(2))
 

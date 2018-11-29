@@ -158,6 +158,7 @@ class Decoder(nn.Module):
             if return_attns:
                 dec_slf_attn_list += [dec_slf_attn]
                 dec_enc_attn_list += [dec_enc_attn]
+        
         assert(not return_attns)
         
         if return_masks:
@@ -212,12 +213,21 @@ class Transformer(nn.Module):
             "To share word embedding table, the vocabulary size of src/tgt shall be the same."
             self.encoder.src_word_emb.weight = self.decoder.tgt_word_emb.weight
 
-    def forward(self, src_seq, src_pos, tgt_seq, tgt_pos):
+    def forward(self, src_seq, src_pos, tgt_seq, tgt_pos, return_masks = False):
 
-        tgt_seq, tgt_pos = tgt_seq[:, :-1], tgt_pos[:, :-1]
+        #tgt_seq, tgt_pos = tgt_seq[:, :-1], tgt_pos[:, :-1]
 
         enc_output, *_ = self.encoder(src_seq, src_pos)
-        dec_output, *_ = self.decoder(tgt_seq, tgt_pos, src_seq, enc_output)
+        
+        if return_masks:
+            dec_output, new_enc_slf_attn_mask, new_dec_slf_attn_mask, new_dec_subsequent_mask, new_enc_non_pad_mask, new_dec_non_pad_mask, new_dec_enc_attn_mask = self.decoder(tgt_seq, tgt_pos, src_seq, enc_output, return_masks=return_masks)
+        else:
+            dec_output, *_ = self.decoder(tgt_seq, tgt_pos, src_seq, enc_output)
+
         seq_logit = self.tgt_word_prj(dec_output) * self.x_logit_scale
-        #TODO
-        return seq_logit.view(-1, seq_logit.size(2))
+        
+        seq_logit = seq_logit[:,:-1,:].contiguous()#jugaad
+        if return_masks:
+            return seq_logit.view(-1, seq_logit.size(2)), dec_output, new_enc_slf_attn_mask, new_dec_slf_attn_mask, new_dec_subsequent_mask, new_enc_non_pad_mask, new_dec_non_pad_mask, new_dec_enc_attn_mask
+        else:
+            return seq_logit.view(-1, seq_logit.size(2)),

@@ -80,9 +80,13 @@ def train_epoch(model, model2, training_data, optimizer, device, smoothing):
     model.train()
     model2.train()
 
-    total_loss = 0
-    n_word_total = 0
-    n_word_correct = 0
+    total_code_loss = 0
+    n_code_word_total = 0
+    n_code_word_correct = 0
+
+    total_text_loss = 0
+    n_text_word_total = 0
+    n_text_word_correct = 0
 
     for batch in tqdm(
             training_data, mininterval=2,
@@ -90,42 +94,58 @@ def train_epoch(model, model2, training_data, optimizer, device, smoothing):
 
         # prepare data
         src_seq, src_pos, tgt_seq, tgt_pos = map(lambda x: x.to(device), batch)
-        gold = tgt_seq[:, 1:]
+        gold_code = tgt_seq[:, 1:]
+        gold_text = src_seq[:, 1:]
 
         # forward
         optimizer.zero_grad()
         #w = input("s")
-        pred = model(src_seq, src_pos, tgt_seq, tgt_pos)
+        pred, dec_output, new_enc_slf_attn_mask, new_dec_slf_attn_mask, new_dec_subsequent_mask, new_enc_non_pad_mask, new_dec_non_pad_mask, new_dec_enc_attn_mask = model(src_seq, src_pos, tgt_seq, tgt_pos, return_masks = True)
 
-        pred2 = model2()
+        pred2 = model2(dec_output, tgt_pos, src_seq, src_pos, new_enc_slf_attn_mask, new_dec_slf_attn_mask, new_dec_subsequent_mask, new_enc_non_pad_mask, new_dec_non_pad_mask, new_dec_enc_attn_mask)
+        
         # backward
-        loss, n_correct = cal_performance(pred, gold, smoothing=smoothing)
-        loss.backward()
+        code_loss, n_code_correct = cal_performance(pred, gold_code, smoothing=smoothing)
+        text_loss, n_text_correct = cal_performance(pred2, gold_text, smoothing = smoothing)
+        
+        (code_loss + text_loss).backward()
 
         # update parameters
         optimizer.step_and_update_lr()
 
         # note keeping
-        total_loss += loss.item()
+        total_code_loss += code_loss.item()
+        total_text_loss += text_loss.item()
 
-        non_pad_mask = gold.ne(Constants.PAD)
-        n_word = non_pad_mask.sum().item()
-        n_word_total += n_word
-        n_word_correct += n_correct
-        # break
+        non_pad_mask = gold_code.ne(Constants.PAD)
+        n_code_word = non_pad_mask.sum().item()
+        n_code_word_total += n_code_word
+        n_code_word_correct += n_code_correct
 
-    loss_per_word = total_loss/n_word_total
-    accuracy = n_word_correct/n_word_total
-    return loss_per_word, accuracy
+        non_pad_mask = gold_text.ne(Constants.PAD)
+        n_text_word = non_pad_mask.sum().item()
+        n_text_word_total += n_text_word
+        n_text_word_correct += n_text_correct
+        
+    code_loss_per_word = total_code_loss/n_code_word_total
+    text_loss_per_word = total_text_loss/n_text_word_total
+    code_accuracy = n_code_word_correct/n_code_word_total
+    text_accuracy = n_text_word_correct/n_text_word_total
+    return code_loss_per_word, text_loss_per_word, code_accuracy, text_accuracy
 
-def eval_epoch(model, validation_data, device):
+def eval_epoch(model, model2, validation_data, device):
     ''' Epoch operation in evaluation phase '''
 
     model.eval()
+    model2.eval()
+    
+    total_code_loss = 0
+    n_code_word_total = 0
+    n_code_word_correct = 0
 
-    total_loss = 0
-    n_word_total = 0
-    n_word_correct = 0
+    total_text_loss = 0
+    n_text_word_total = 0
+    n_text_word_correct = 0
 
     with torch.no_grad():
         for batch in tqdm(
@@ -134,27 +154,39 @@ def eval_epoch(model, validation_data, device):
 
             # prepare data
             src_seq, src_pos, tgt_seq, tgt_pos = map(lambda x: x.to(device), batch)
-            gold = tgt_seq[:, 1:]
+            gold_code = tgt_seq[:, 1:]
+            gold_text = src_seq[:, 1:]
 
             # forward
-            #print(src_seq,src_pos,tgt_seq,tgt_seq)
-            batch_size = src_seq.size(0)
+            pred, dec_output, new_enc_slf_attn_mask, new_dec_slf_attn_mask, new_dec_subsequent_mask, new_enc_non_pad_mask, new_dec_non_pad_mask, new_dec_enc_attn_mask = model(src_seq, src_pos, tgt_seq, tgt_pos, return_masks = True)
 
-            pred = model(src_seq, src_pos, tgt_seq, tgt_pos)
+            pred2 = model2(dec_output, tgt_pos, src_seq, src_pos, new_enc_slf_attn_mask, new_dec_slf_attn_mask, new_dec_subsequent_mask, new_enc_non_pad_mask, new_dec_non_pad_mask, new_dec_enc_attn_mask)
             
-            loss, n_correct = cal_performance(pred, gold, smoothing=False)
+            # loss
+            code_loss, n_code_correct = cal_performance(pred, gold_code)
+
+            text_loss, n_text_correct = cal_performance(pred2, gold_text)
+
 
             # note keeping
-            total_loss += loss.item()
+            total_code_loss += code_loss.item()
+            total_text_loss += text_loss.item()
 
-            non_pad_mask = gold.ne(Constants.PAD)
-            n_word = non_pad_mask.sum().item()
-            n_word_total += n_word
-            n_word_correct += n_correct
+            non_pad_mask = gold_code.ne(Constants.PAD)
+            n_code_word = non_pad_mask.sum().item()
+            n_code_word_total += n_code_word
+            n_code_word_correct += n_code_correct
 
-    loss_per_word = total_loss/n_word_total
-    accuracy = n_word_correct/n_word_total
-    return loss_per_word, accuracy
+            non_pad_mask = gold_text.ne(Constants.PAD)
+            n_text_word = non_pad_mask.sum().item()
+            n_text_word_total += n_text_word
+            n_text_word_correct += n_text_correct
+
+    code_loss_per_word = total_code_loss/n_code_word_total
+    text_loss_per_word = total_text_loss/n_text_word_total
+    code_accuracy = n_code_word_correct/n_code_word_total
+    text_accuracy = n_text_word_correct/n_text_word_total
+    return code_loss_per_word, text_loss_per_word, code_accuracy, text_accuracy
 
 def eval_bleu_score(opt, model, data, device, split = 'dev'):
     translator = Translator(opt, model, load_from_file = False)
@@ -187,26 +219,27 @@ def train(model, model2, training_data, validation_data, test_data, optimizer, d
             log_tf.write('epoch,loss,ppl,accuracy\n')
             log_vf.write('epoch,loss,ppl,accuracy\n')
 
-    valid_accus = []
+    valid_code_accus = []
     for epoch_i in range(opt.epoch):
         print('[ Epoch', epoch_i, ']')
 
         start = time.time()
-        train_loss, train_accu = train_epoch(
+        train_code_loss, train_text_loss, train_code_accu, train_text_accu = train_epoch(
             model, model2, training_data, optimizer, device, smoothing=opt.label_smoothing)
-        print('  - (Training)   ppl: {ppl: 8.5f}, accuracy: {accu:3.3f} %, '\
+        print('  - (Training)   code_loss: {code_loss: 8.5f}, code_ppl: {code_ppl: 8.5f}, code_accuracy: {code_accu:3.3f} %, text_loss: {text_loss: 8.5f}, text_ppl: {text_ppl: 8.5f}, text_accuracy: {text_accu:3.3f} %, '\
               'elapse: {elapse:3.3f} min'.format(
-                  ppl=math.exp(min(train_loss, 100)), accu=100*train_accu,
+                  code_loss=train_code_loss, code_ppl=math.exp(min(train_code_loss, 100)), code_accu=100*train_code_accu, text_loss=train_text_loss, text_ppl=math.exp(min(train_text_loss, 100)), text_accu=100*train_text_accu,
                   elapse=(time.time()-start)/60))
 
         start = time.time()
-        valid_loss, valid_accu = eval_epoch(model, validation_data, device)
-        print('  - (Validation) ppl: {ppl: 8.5f}, accuracy: {accu:3.3f} %, '\
-                'elapse: {elapse:3.3f} min'.format(
-                    ppl=math.exp(min(valid_loss, 100)), accu=100*valid_accu,
-                    elapse=(time.time()-start)/60))
+        valid_code_loss, valid_text_loss, valid_code_accu, valid_text_accu = eval_epoch(
+            model, model2, validation_data, device)
+        print('  - (Validation)   code_loss: {code_loss: 8.5f}, code_ppl: {code_ppl: 8.5f}, code_accuracy: {code_accu:3.3f} %, text_loss: {text_loss: 8.5f}, text_ppl: {text_ppl: 8.5f}, text_accuracy: {text_accu:3.3f} %, '\
+              'elapse: {elapse:3.3f} min'.format(
+                  code_loss=valid_code_loss, code_ppl=math.exp(min(valid_code_loss, 100)), code_accu=100*valid_code_accu, text_loss=valid_text_loss, text_ppl=math.exp(min(valid_text_loss, 100)), text_accu=100*valid_text_accu,
+                  elapse=(time.time()-start)/60))
 
-        valid_accus += [valid_accu]
+        valid_code_accus += [valid_code_accu]
 
         if (epoch_i+1)%10 == 0:
             eval_bleu_score(opt, model, test_data, device, split = 'test')
@@ -219,23 +252,25 @@ def train(model, model2, training_data, validation_data, test_data, optimizer, d
 
         if opt.save_model:
             if opt.save_mode == 'all':
-                model_name = opt.save_model + '_accu_{accu:3.3f}.chkpt'.format(accu=100*valid_accu)
+                model_name = opt.save_model + '_code_accu_{accu:3.3f}.chkpt'.format(accu=100*valid_code_accu)
                 torch.save(checkpoint, model_name)
             elif opt.save_mode == 'best':
                 model_name = opt.save_model + '.chkpt'
-                if valid_accu >= max(valid_accus):
+                if valid_code_accu >= max(valid_code_accus):
                     torch.save(checkpoint, model_name)
                     print('    - [Info] The checkpoint file has been updated.')
 
         if log_train_file and log_valid_file:
             with open(log_train_file, 'a') as log_tf, open(log_valid_file, 'a') as log_vf:
-                log_tf.write('{epoch},{loss: 8.5f},{ppl: 8.5f},{accu:3.3f}\n'.format(
-                    epoch=epoch_i, loss=train_loss,
-                    ppl=math.exp(min(train_loss, 100)), accu=100*train_accu))
-                log_vf.write('{epoch},{loss: 8.5f},{ppl: 8.5f},{accu:3.3f}\n'.format(
-                    epoch=epoch_i, loss=valid_loss,
-                    ppl=math.exp(min(valid_loss, 100)), accu=100*valid_accu))
-
+                log_tf.write('{epoch},{code_loss: 8.5f},{code_ppl: 8.5f},{code_accu:3.3f},{text_loss: 8.5f},{text_ppl: 8.5f},{text_accu:3.3f}\n'.format(
+                    epoch=epoch_i, code_loss=train_code_loss,
+                    code_ppl=math.exp(min(train_code_loss, 100)), code_accu=100*train_code_accu, text_loss=train_text_loss,
+                    text_ppl=math.exp(min(train_text_loss, 100)), text_accu=100*train_text_accu))
+                log_vf.write('{epoch},{code_loss: 8.5f},{code_ppl: 8.5f},{code_accu:3.3f},{text_loss: 8.5f},{text_ppl: 8.5f},{text_accu:3.3f}\n'.format(
+                    epoch=epoch_i, code_loss=valid_code_loss,
+                    code_ppl=math.exp(min(valid_code_loss, 100)), code_accu=100*valid_code_accu, text_loss=valid_text_loss,
+                    text_ppl=math.exp(min(valid_text_loss, 100)), text_accu=100*valid_text_accu))
+                
 def main():
     ''' Main function '''
     parser = argparse.ArgumentParser()
@@ -321,7 +356,7 @@ def main():
         dropout=opt.dropout).to(device)
     
     transformer2 = Transformer2(
-            opt.tgt_vocab_size,
+            opt.src_vocab_size,
             opt.out_seq_max_len,
             opt.inp_seq_max_len,
             tgt_emb_prj_weight_sharing=opt.proj_share_weight,
