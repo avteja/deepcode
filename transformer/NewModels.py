@@ -1,6 +1,7 @@
 ''' Define the Transformer model '''
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import numpy as np
 import transformer.Constants as Constants
 from transformer.Layers import EncoderLayer, DecoderLayer
@@ -53,7 +54,7 @@ class Encoder2(nn.Module):
     ''' A encoder model with self attention mechanism. '''
 
     def __init__(
-            self, len_max_seq, d_word_vec,
+            self, n_src_vocab, len_max_seq, d_word_vec,
             n_layers, n_head, d_k, d_v,
             d_model, d_inner, dropout=0.1):
 
@@ -63,6 +64,7 @@ class Encoder2(nn.Module):
         print(n_position)
         self.src_word_emb = nn.Linear(d_model, d_word_vec)#nn.Embedding(n_src_vocab, d_word_vec, padding_idx=Constants.PAD)
 
+        self.src_word_all_embed = nn.Linear(n_src_vocab,d_word_vec,bias = False)
 
         self.position_enc = nn.Embedding.from_pretrained(
             get_sinusoid_encoding_table(n_position, d_word_vec, padding_idx=0),
@@ -71,8 +73,9 @@ class Encoder2(nn.Module):
         self.layer_stack = nn.ModuleList([
             EncoderLayer(d_model, d_inner, n_head, d_k, d_v, dropout=dropout)
             for _ in range(n_layers)])
+        self.softmax = nn.Softmax(dim=-1)
 
-    def forward(self, src_seq, src_pos, new_enc_slf_attn_mask, new_enc_non_pad_mask, return_attns=False):
+    def forward(self, src_seq, src_pos, new_enc_slf_attn_mask, new_enc_non_pad_mask, return_attns=False, input_logits = False):
 
         enc_slf_attn_list = []
 
@@ -81,7 +84,11 @@ class Encoder2(nn.Module):
         non_pad_mask = new_enc_non_pad_mask
 
         # -- Forward
-        enc_output = self.src_word_emb(src_seq) + self.position_enc(src_pos)
+        if input_logits:
+            src_seq = self.softmax(src_seq)
+            enc_output = self.src_word_all_embed(src_seq) + self.position_enc(src_pos)
+        else:
+            enc_output = F.relu(self.src_word_emb(src_seq)) + self.position_enc(src_pos)
 
         for enc_layer in self.layer_stack:
             enc_output, enc_slf_attn = enc_layer(
@@ -155,6 +162,7 @@ class Transformer2(nn.Module):
 
     def __init__(
             self,
+            n_src_vocab,
             n_tgt_vocab, len_max_seq_inp,len_max_seq_out,
             d_word_vec=512, d_model=512, d_inner=2048,
             n_layers=6, n_head=8, d_k=64, d_v=64, dropout=0.1,
@@ -164,6 +172,7 @@ class Transformer2(nn.Module):
         super().__init__()
 
         self.encoder = Encoder2(
+            n_src_vocab=n_src_vocab,
             len_max_seq=len_max_seq_inp,
             d_word_vec=d_word_vec, d_model=d_model, d_inner=d_inner,
             n_layers=n_layers, n_head=n_head, d_k=d_k, d_v=d_v,
@@ -176,6 +185,8 @@ class Transformer2(nn.Module):
             dropout=dropout)
 
         self.tgt_word_prj = nn.Linear(d_model, n_tgt_vocab, bias=False)
+
+
         nn.init.xavier_normal_(self.tgt_word_prj.weight)
 
         assert d_model == d_word_vec, \
@@ -195,7 +206,7 @@ class Transformer2(nn.Module):
             "To share word embedding table, the vocabulary size of src/tgt shall be the same."
             self.encoder.src_word_emb.weight = self.decoder.tgt_word_emb.weight
 
-    def forward(self, src_seq, src_pos, tgt_seq, tgt_pos, new_enc_slf_attn_mask, new_dec_slf_attn_mask, new_dec_subsequent_mask, new_enc_non_pad_mask, new_dec_non_pad_mask, new_dec_enc_attn_mask):
+    def forward(self, src_seq, src_pos, tgt_seq, tgt_pos, new_enc_slf_attn_mask, new_dec_slf_attn_mask, new_dec_subsequent_mask, new_enc_non_pad_mask, new_dec_non_pad_mask, new_dec_enc_attn_mask,input_logits=False):
 
         #tgt_seq, tgt_pos = tgt_seq[:, :-1], tgt_pos[:, :-1]
         
@@ -203,7 +214,8 @@ class Transformer2(nn.Module):
         #src_seq = torch.cat((torch.zeros(src_seq.size(0),1,src_seq.size(2)).cuda(),src_seq), dim=1) # jugaad
         #src_pos = src_pos[:, :-1] # jugaad
 
-        enc_output, *_ = self.encoder(src_seq, src_pos, new_enc_slf_attn_mask, new_enc_non_pad_mask)
+        
+        enc_output, *_ = self.encoder(src_seq, src_pos, new_enc_slf_attn_mask, new_enc_non_pad_mask, input_logits = input_logits)
         dec_output, *_ = self.decoder(tgt_seq, tgt_pos, src_seq, enc_output, new_dec_slf_attn_mask, new_dec_subsequent_mask, new_dec_non_pad_mask, new_dec_enc_attn_mask)
         seq_logit = self.tgt_word_prj(dec_output) * self.x_logit_scale
 

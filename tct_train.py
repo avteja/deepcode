@@ -100,9 +100,9 @@ def train_epoch(model, model2, training_data, optimizer, device, smoothing, opt)
         # forward
         optimizer.zero_grad()
         #w = input("s")
-        pred, dec_output, new_enc_slf_attn_mask, new_dec_slf_attn_mask, new_dec_subsequent_mask, new_enc_non_pad_mask, new_dec_non_pad_mask, new_dec_enc_attn_mask = model(src_seq, src_pos, tgt_seq, tgt_pos, return_masks = True)
+        pred, dec_output, new_enc_slf_attn_mask, new_dec_slf_attn_mask, new_dec_subsequent_mask, new_enc_non_pad_mask, new_dec_non_pad_mask, new_dec_enc_attn_mask = model(src_seq, src_pos, tgt_seq, tgt_pos, return_masks = opt.return_masks, return_logits = opt.return_logits)
 
-        pred2 = model2(dec_output, tgt_pos, src_seq, src_pos, new_enc_slf_attn_mask, new_dec_slf_attn_mask, new_dec_subsequent_mask, new_enc_non_pad_mask, new_dec_non_pad_mask, new_dec_enc_attn_mask)
+        pred2 = model2(dec_output, tgt_pos, src_seq, src_pos, new_enc_slf_attn_mask, new_dec_slf_attn_mask, new_dec_subsequent_mask, new_enc_non_pad_mask, new_dec_non_pad_mask, new_dec_enc_attn_mask,input_logits = opt.return_logits)
         
         # backward
         code_loss, n_code_correct = cal_performance(pred, gold_code, smoothing=smoothing)
@@ -310,6 +310,9 @@ def main():
 
     # New loss weighting
     parser.add_argument('-alpha', type=float,default=1.0, help='Weighting loss')
+    parser.add_argument('-no_return_masks',dest = 'return_masks', default = True, action='store_false')
+    parser.add_argument('-no_return_logits',dest = 'return_logits', default = True, action='store_false')
+
 
 
 
@@ -359,6 +362,7 @@ def main():
         dropout=opt.dropout).to(device)
     
     transformer2 = Transformer2(
+            opt.tgt_vocab_size,
             opt.src_vocab_size,
             opt.out_seq_max_len,
             opt.inp_seq_max_len,
