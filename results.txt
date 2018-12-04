@@ -1,0 +1,28 @@
+python tct_train.py -data conala-train+dev+test.pt -snippet_model data/annotated/conala-trainnodev-snippet-4000.model -n_layers 2 -epoch 100 -batch_size 32 -beam_size 2 -dropout 0.2 -alpha 0.0 -save_model models/alpha_0_0 -log logs/alpha_0_0
+
+30 epochs
+bleu:13.62                                                                      
+exact:0.00
+
+python tct_train.py -data conala-train+dev+test.pt -snippet_model data/annotated/conala-trainnodev-snippet-4000.model -n_layers 2 -epoch 100 -batch_size 32 -beam_size 2 -dropout 0.2 -alpha 0.1 -save_model models/alpha_0_1 -log logs/alpha_0_1
+
+40 epochs
+bleu:14.29                                                                      
+exact:0.40
+
+python tct_train.py -data conala-train+dev+test.pt -snippet_model data/annotated/conala-trainnodev-snippet-4000.model -n_layers 2 -epoch 100 -batch_size 32 -beam_size 2 -dropout 0.2 -alpha 0.5 -save_model models/alpha_0_5 -log logs/alpha_0_5
+
+45 epochs
+bleu:14.73                                                                      
+exact:0.20
+
+python tct_train.py -data conala-train+dev+test.pt -snippet_model data/annotated/conala-trainnodev-snippet-4000.model -n_layers 2 -epoch 100 -batch_size 32 -beam_size 2 -dropout 0.2 -alpha 0.8 -save_model models/alpha_0_8 -log logs/alpha_0_8
+
+45 epochs
+bleu:14.52                                                                      
+exact:0.80
+
+python tct_train.py -data conala-train+dev+test.pt -snippet_model data/annotated/conala-trainnodev-snippet-4000.model -n_layers 2 -epoch 100 -batch_size 32 -beam_size 2 -dropout 0.2 -alpha 2.0 -save_model models/logits_dropout_0_2_alpha_2_0 -log logs/logits_dropout_0_2_alpha_2_0
+bleu:15.20                             
+exact:0.00
+

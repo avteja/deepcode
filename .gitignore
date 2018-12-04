@@ -1,6 +1,7 @@
 data/
 results/
 *.chkpt
+*.pt
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

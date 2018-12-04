@@ -12,18 +12,24 @@ def read_instances_from_file(sp, inst_file, word2idx):
     eos_index = word2idx[Constants.EOS_WORD]
 
     token_insts = []
+    max_len = 0
+    lens = []
     with open(inst_file) as f:
         for sent in f:
             sent = sent.strip()
             ids = [bos_index] + sp.EncodeAsIds(sent) + [eos_index]
-            if 0 in ids:
-                print ('unk present')
-                print (sent)
-                print (ids)
-            pieces = sp.EncodeAsPieces(sent)
+            # if 0 in ids:
+            #     print ('unk present')
+            #     print (sent)
+            #     print (ids)
+            # pieces = sp.EncodeAsPieces(sent)
             token_insts += [ids]
+            max_len = max(max_len, len(ids))
+            lens.append(len(ids))
 
-    print('[Info] Get {} examples from {}'.format(len(token_insts), inst_file))
+    lens.sort()
+    # print (lens)
+    print('[Info] Get {} examples from {} with max length {}'.format(len(token_insts), inst_file, max_len))
 
     return token_insts
 
@@ -46,6 +52,7 @@ def main():
     parser.add_argument('-intent_vocab')
     parser.add_argument('-snippet_vocab')
     parser.add_argument('-save_data')
+    parser.add_argument('-max_len', type=int, default=200)
 
     opt = parser.parse_args()
 
@@ -89,12 +96,20 @@ def main():
     valid_snippet_insts = read_instances_from_file(sp_snippet, opt.valid_snippet, snippet_word2idx)
     test_snippet_insts = read_instances_from_file(sp_snippet, opt.test_snippet, snippet_word2idx)
 
+    indices = [idx for idx in range(len(train_snippet_insts)) if len(train_snippet_insts[idx]) <= opt.max_len ]
+    train_intent_insts = [train_intent_insts[i] for i in indices]
+    train_snippet_insts = [train_snippet_insts[i] for i in indices]
+
     opt.train_max_input_len = max([len(intent) for intent in train_intent_insts])
     opt.train_max_output_len = max([len(snippet) for snippet in train_snippet_insts])
     opt.valid_max_input_len = max([len(intent) for intent in valid_intent_insts])
     opt.valid_max_output_len = max([len(snippet) for snippet in valid_snippet_insts])
     opt.test_max_input_len = max([len(intent) for intent in test_intent_insts])
     opt.test_max_output_len = max([len(snippet) for snippet in test_snippet_insts])
+
+    print ('Number of Train Instances =', len(train_intent_insts))
+    print ('Train Max Input Len =', opt.train_max_input_len)
+    print ('Train Max Output Len =', opt.train_max_output_len)
 
     assert len(train_intent_insts) == len(train_snippet_insts), '[Error] The training instance count is not equal.'
     assert len(valid_intent_insts) == len(valid_snippet_insts), '[Error] The valid instance count is not equal.'

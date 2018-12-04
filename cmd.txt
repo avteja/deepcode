@@ -1,1 +1,0 @@
-python train.py -data conala-train+dev+test.pt -snippet_model data/annotated/conala-trainnodev-snippet-4000.model -n_layers 2 -epoch 100 -batch_size 8

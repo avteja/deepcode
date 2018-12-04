@@ -17,12 +17,49 @@ from transformer.Models import Transformer
 from transformer.NewModels import Transformer2
 from transformer.Optim import ScheduledOptim
 import os
+import json
 
 import sentencepiece as spm
 
 from transformer.Translator import Translator
 
 sp = spm.SentencePieceProcessor()
+
+########################################
+# Warm restart code credits: Ankur Garg#
+# First four functions in this code   #
+########################################
+def check_restart_conditions(opt):
+    # Check for the status file corresponding to the model
+    status_file = os.path.join(opt.save_model_dir, 'status.json')
+    if os.path.exists(status_file):
+        with open(status_file, 'r') as f:
+            status = json.load(f)
+        opt.resume_from_epoch = status['epoch']
+    else:
+        opt.resume_from_epoch = 0
+    return opt
+
+def write_status(opt, epoch):
+    status_file = os.path.join(opt.save_model_dir, 'status.json')
+    status = {
+        'epoch': epoch,
+    }
+    with open(status_file, 'w') as f:
+        json.dump(status, f, indent=4)
+
+def load_models(model, model2, opt, epoch):
+    checkpoint = torch.load(os.path.join(opt.save_model_dir, 'epoch_{0:02d}.chkpt'.format(epoch)))
+    model.load_state_dict(checkpoint['model'])
+    model2.load_state_dict(checkpoint['model2'])
+    return model, model2
+
+def save_params(opt):
+    if not os.path.exists(os.path.join(opt.save_model_dir)):
+        os.makedirs(os.path.join(opt.save_model_dir))
+
+    with open(os.path.join(opt.save_model_dir, 'params.json'), 'w') as f:
+        json.dump(vars(opt), f, indent=4)
 
 def cal_performance(pred, gold, smoothing=False):
     ''' Apply label smoothing if needed '''
@@ -74,9 +111,8 @@ def cal_loss(pred, gold, smoothing):
     return loss
 
 
-def train_epoch(model, model2, training_data, optimizer, device, smoothing):
+def train_epoch(model, model2, training_data, optimizer, device, smoothing, opt):
     ''' Epoch operation in training phase'''
-    #TODO
     model.train()
     model2.train()
 
@@ -100,15 +136,15 @@ def train_epoch(model, model2, training_data, optimizer, device, smoothing):
         # forward
         optimizer.zero_grad()
         #w = input("s")
-        pred, dec_output, new_enc_slf_attn_mask, new_dec_slf_attn_mask, new_dec_subsequent_mask, new_enc_non_pad_mask, new_dec_non_pad_mask, new_dec_enc_attn_mask = model(src_seq, src_pos, tgt_seq, tgt_pos, return_masks = True)
+        pred, dec_output, new_enc_slf_attn_mask, new_dec_slf_attn_mask, new_dec_subsequent_mask, new_enc_non_pad_mask, new_dec_non_pad_mask, new_dec_enc_attn_mask = model(src_seq, src_pos, tgt_seq, tgt_pos, return_masks = opt.return_masks, return_logits = opt.return_logits)
 
-        pred2 = model2(dec_output, tgt_pos, src_seq, src_pos, new_enc_slf_attn_mask, new_dec_slf_attn_mask, new_dec_subsequent_mask, new_enc_non_pad_mask, new_dec_non_pad_mask, new_dec_enc_attn_mask)
+        pred2 = model2(dec_output, tgt_pos, src_seq, src_pos, new_enc_slf_attn_mask, new_dec_slf_attn_mask, new_dec_subsequent_mask, new_enc_non_pad_mask, new_dec_non_pad_mask, new_dec_enc_attn_mask,input_logits = opt.return_logits)
         
         # backward
         code_loss, n_code_correct = cal_performance(pred, gold_code, smoothing=smoothing)
         text_loss, n_text_correct = cal_performance(pred2, gold_text, smoothing = smoothing)
         
-        (code_loss + text_loss).backward()
+        (code_loss + opt.alpha*text_loss).backward()
 
         # update parameters
         optimizer.step_and_update_lr()
@@ -188,10 +224,10 @@ def eval_epoch(model, model2, validation_data, device):
     text_accuracy = n_text_word_correct/n_text_word_total
     return code_loss_per_word, text_loss_per_word, code_accuracy, text_accuracy
 
-def eval_bleu_score(opt, model, data, device, split = 'dev'):
+def eval_bleu_score(opt, model, data, device, epoch, split = 'dev'):
     translator = Translator(opt, model, load_from_file = False)
     outfile = open('results/mypreds.hyp', 'w')
-    for batch in tqdm(data, mininterval=2, desc='  - (Validation)', leave=False):
+    for batch in tqdm(data, mininterval=2, desc='  - (Test)', leave=False):
         src_seq, src_pos, tgt_seq, tgt_pos = map(lambda x: x.to(device), batch)
         all_hyp, all_scores = translator.translate_batch(src_seq, src_pos)
         for idx_seqs in all_hyp:
@@ -200,7 +236,7 @@ def eval_bleu_score(opt, model, data, device, split = 'dev'):
                 out = sp.DecodeIds(pred)
                 outfile.write(out + '\n')
     outfile.close()
-    os.system("sh calcBLEU.sh " + split)
+    os.system("sh calcBLEU.sh " + split + " " + opt.save_model_dir + " " + str(epoch))
 
 def train(model, model2, training_data, validation_data, test_data, optimizer, device, opt):
     ''' Start training '''
@@ -209,23 +245,23 @@ def train(model, model2, training_data, validation_data, test_data, optimizer, d
     log_valid_file = None
 
     if opt.log:
-        log_train_file = opt.log + '.train.log'
-        log_valid_file = opt.log + '.valid.log'
+        log_train_file = os.path.join(opt.save_model_dir, 'train.log')
+        log_valid_file = os.path.join(opt.save_model_dir, 'valid.log')
 
         print('[Info] Training performance will be written to file: {} and {}'.format(
             log_train_file, log_valid_file))
 
         with open(log_train_file, 'w') as log_tf, open(log_valid_file, 'w') as log_vf:
-            log_tf.write('epoch,loss,ppl,accuracy\n')
-            log_vf.write('epoch,loss,ppl,accuracy\n')
+            log_tf.write('epoch,code_loss,code_ppl,code_accuracy,text_loss,text_ppl,text_accuracy\n')
+            log_vf.write('epoch,code_loss,code_ppl,code_accuracy,text_loss,text_ppl,text_accuracy\n')
 
     valid_code_accus = []
-    for epoch_i in range(opt.epoch):
+    for epoch_i in range(opt.resume_from_epoch, opt.resume_from_epoch + opt.epoch):
         print('[ Epoch', epoch_i, ']')
 
         start = time.time()
         train_code_loss, train_text_loss, train_code_accu, train_text_accu = train_epoch(
-            model, model2, training_data, optimizer, device, smoothing=opt.label_smoothing)
+            model, model2, training_data, optimizer, device, smoothing=opt.label_smoothing, opt=opt)
         print('  - (Training)   code_loss: {code_loss: 8.5f}, code_ppl: {code_ppl: 8.5f}, code_accuracy: {code_accu:3.3f} %, text_loss: {text_loss: 8.5f}, text_ppl: {text_ppl: 8.5f}, text_accuracy: {text_accu:3.3f} %, '\
               'elapse: {elapse:3.3f} min'.format(
                   code_loss=train_code_loss, code_ppl=math.exp(min(train_code_loss, 100)), code_accu=100*train_code_accu, text_loss=train_text_loss, text_ppl=math.exp(min(train_text_loss, 100)), text_accu=100*train_text_accu,
@@ -241,22 +277,24 @@ def train(model, model2, training_data, validation_data, test_data, optimizer, d
 
         valid_code_accus += [valid_code_accu]
 
-        if (epoch_i+1)%1 == 0:
-            eval_bleu_score(opt, model, test_data, device, split = 'test')
+        if (epoch_i+1)%(opt.test_epoch) == 0:
+            eval_bleu_score(opt, model, test_data, device, epoch_i, split = 'test')
 
         model_state_dict = model.state_dict()
+        model2_state_dict = model2.state_dict()
         checkpoint = {
             'model': model_state_dict,
+            'model2': model2_state_dict,
             'settings': opt,
             'epoch': epoch_i}
 
-        if opt.save_model:
+        if opt.save_model_dir:
             if opt.save_mode == 'all':
-                model_name = opt.save_model + '_code_accu_{accu:3.3f}.chkpt'.format(accu=100*valid_code_accu)
+                model_name = os.path.join(opt.save_model_dir, 'epoch_{0:02d}.chkpt'.format(epoch_i))
                 torch.save(checkpoint, model_name)
             elif opt.save_mode == 'best':
-                model_name = opt.save_model + '.chkpt'
-                if valid_code_accu >= max(valid_code_accus):
+                model_name = os.path.join(opt.save_model_dir, 'epoch_{0:02d}.chkpt'.format(epoch_i))
+                if valid_accu >= max(valid_accus):
                     torch.save(checkpoint, model_name)
                     print('    - [Info] The checkpoint file has been updated.')
 
@@ -271,6 +309,8 @@ def train(model, model2, training_data, validation_data, test_data, optimizer, d
                     code_ppl=math.exp(min(valid_code_loss, 100)), code_accu=100*valid_code_accu, text_loss=valid_text_loss,
                     text_ppl=math.exp(min(valid_text_loss, 100)), text_accu=100*valid_text_accu))
                 
+        write_status(opt, epoch_i)
+
 def main():
     ''' Main function '''
     parser = argparse.ArgumentParser()
@@ -295,9 +335,9 @@ def main():
     parser.add_argument('-embs_share_weight', action='store_true')
     parser.add_argument('-proj_share_weight', action='store_true')
 
-    parser.add_argument('-log', default=None)
-    parser.add_argument('-save_model', default=None)
-    parser.add_argument('-save_mode', type=str, choices=['all', 'best'], default='best')
+    parser.add_argument('-log', type=bool, default=True)
+    parser.add_argument('-save_model_dir', default=None, required=True)
+    parser.add_argument('-save_mode', type=str, choices=['all', 'best'], default='all')
 
     parser.add_argument('-no_cuda', action='store_true')
     parser.add_argument('-label_smoothing', action='store_true')
@@ -307,8 +347,14 @@ def main():
     parser.add_argument('-n_best', type=int, default=1,
                         help="""If verbose is set, will output the n_best
                         decoded sentences""")
+    
+    parser.add_argument('-test_epoch', type=int, default=5, help='Test every x epochs')
+    parser.add_argument('-resume_from_epoch', type=int, default=0, help='Warm restart')
 
-
+    # New loss weighting
+    parser.add_argument('-alpha', type=float,default=1.0, help='Weighting loss')
+    parser.add_argument('-no_return_masks',dest = 'return_masks', default = True, action='store_false')
+    parser.add_argument('-no_return_logits',dest = 'return_logits', default = True, action='store_false')
 
     opt = parser.parse_args()
     opt.cuda = not opt.no_cuda
@@ -356,6 +402,7 @@ def main():
         dropout=opt.dropout).to(device)
     
     transformer2 = Transformer2(
+            opt.tgt_vocab_size,
             opt.src_vocab_size,
             opt.out_seq_max_len,
             opt.inp_seq_max_len,
@@ -377,7 +424,15 @@ def main():
             betas=(0.9, 0.98), eps=1e-09),
         opt.d_model, opt.n_warmup_steps)
 
-    train(transformer, transformer2, training_data, validation_data, test_data, optimizer, device ,opt)
+    save_params(opt)
+
+    opt = check_restart_conditions(opt)
+    if opt.resume_from_epoch >= 1:
+        print('Loading Old model')
+        print('Loading model files from folder: %s' % opt.save_model_dir)
+        transformer, transformer2 = load_models(transformer, transformer2, opt, opt.resume_from_epoch)
+
+    train(transformer, transformer2, training_data, validation_data, test_data, optimizer, device, opt)
 
 
 def prepare_dataloaders(data, opt):
