@@ -241,7 +241,7 @@ def train(model, model2, training_data, validation_data, test_data, optimizer, d
 
         valid_code_accus += [valid_code_accu]
 
-        if (epoch_i+1)%10 == 0:
+        if (epoch_i+1)%1 == 0:
             eval_bleu_score(opt, model, test_data, device, split = 'test')
 
         model_state_dict = model.state_dict()
