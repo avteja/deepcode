@@ -312,6 +312,9 @@ def main():
     parser.add_argument('-test_epoch', type=int, default=5, help='Test every x epochs')
     parser.add_argument('-resume_from_epoch', type=int, default=0, help='Warm restart')
 
+    # Not really needed
+    parser.add_argument('-alpha', type=float,default=1.0, help='Weighting loss')
+
     opt = parser.parse_args()
     opt.cuda = not opt.no_cuda
     opt.d_word_vec = opt.d_model
