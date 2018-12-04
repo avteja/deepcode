@@ -16,12 +16,48 @@ from dataset import TranslationDataset, paired_collate_fn
 from transformer.Models import Transformer
 from transformer.Optim import ScheduledOptim
 import os
+import json
 
 import sentencepiece as spm
 
 from transformer.Translator import Translator
 
 sp = spm.SentencePieceProcessor()
+
+########################################
+# Warm restart code credits: Ankur Garg#
+# First four functions in this code   #
+########################################
+def check_restart_conditions(opt):
+    # Check for the status file corresponding to the model
+    status_file = os.path.join(opt.save_model_dir, 'status.json')
+    if os.path.exists(status_file):
+        with open(status_file, 'r') as f:
+            status = json.load(f)
+        opt.resume_from_epoch = status['epoch']
+    else:
+        opt.resume_from_epoch = 0
+    return opt
+
+def write_status(opt, epoch):
+    status_file = os.path.join(opt.save_model_dir, 'status.json')
+    status = {
+        'epoch': epoch,
+    }
+    with open(status_file, 'w') as f:
+        json.dump(status, f, indent=4)
+
+def load_models(model, opt, epoch):
+    checkpoint = torch.load(os.path.join(opt.save_model_dir, 'epoch_{0:02d}.chkpt'.format(epoch)))
+    model.load_state_dict(checkpoint['model'])
+    return model
+
+def save_params(opt):
+    if not os.path.exists(os.path.join(opt.save_model_dir)):
+        os.makedirs(os.path.join(opt.save_model_dir))
+
+    with open(os.path.join(opt.save_model_dir, 'params.json'), 'w') as f:
+        json.dump(vars(opt), f, indent=4)
 
 def cal_performance(pred, gold, smoothing=False):
     ''' Apply label smoothing if needed '''
@@ -153,7 +189,7 @@ def eval_epoch(model, validation_data, device):
     accuracy = n_word_correct/n_word_total
     return loss_per_word, accuracy
 
-def eval_bleu_score(opt, model, data, device, split = 'dev'):
+def eval_bleu_score(opt, model, data, device, epoch, split = 'dev'):
     translator = Translator(opt, model, load_from_file = False)
     outfile = open('results/mypreds.hyp', 'w')
     for batch in tqdm(data, mininterval=2, desc='  - (Test)', leave=False):
@@ -165,7 +201,7 @@ def eval_bleu_score(opt, model, data, device, split = 'dev'):
                 out = sp.DecodeIds(pred)
                 outfile.write(out + '\n')
     outfile.close()
-    os.system("sh calcBLEU.sh " + split)
+    os.system("sh calcBLEU.sh " + split + " " + opt.save_model_dir + " " + str(epoch))
 
 def train(model, training_data, validation_data, test_data, optimizer, device, opt):
     ''' Start training '''
@@ -174,8 +210,8 @@ def train(model, training_data, validation_data, test_data, optimizer, device, o
     log_valid_file = None
 
     if opt.log:
-        log_train_file = opt.log + '.train.log'
-        log_valid_file = opt.log + '.valid.log'
+        log_train_file = os.path.join(opt.save_model_dir, 'train.log')
+        log_valid_file = os.path.join(opt.save_model_dir, 'valid.log')
 
         print('[Info] Training performance will be written to file: {} and {}'.format(
             log_train_file, log_valid_file))
@@ -185,41 +221,42 @@ def train(model, training_data, validation_data, test_data, optimizer, device, o
             log_vf.write('epoch,loss,ppl,accuracy\n')
 
     valid_accus = []
-    for epoch_i in range(opt.epoch):
+    for epoch_i in range(opt.resume_from_epoch, opt.resume_from_epoch + opt.epoch):
         print('[ Epoch', epoch_i, ']')
 
         start = time.time()
         train_loss, train_accu = train_epoch(
             model, training_data, optimizer, device, smoothing=opt.label_smoothing)
-        print('  - (Training)   ppl: {ppl: 8.5f}, accuracy: {accu:3.3f} %, '\
-              'elapse: {elapse:3.3f} min'.format(
+        print('  - (Training)   loss: {loss: 8.5f} ppl: {ppl: 8.5f}, accuracy: {accu:3.3f} %, '\
+              'elapse: {elapse:3.3f} min'.format(loss=train_loss,
                   ppl=math.exp(min(train_loss, 100)), accu=100*train_accu,
                   elapse=(time.time()-start)/60))
 
         start = time.time()
         valid_loss, valid_accu = eval_epoch(model, validation_data, device)
-        print('  - (Validation) ppl: {ppl: 8.5f}, accuracy: {accu:3.3f} %, '\
-                'elapse: {elapse:3.3f} min'.format(
+        print('  - (Validation) loss: {loss: 8.5f} ppl: {ppl: 8.5f}, accuracy: {accu:3.3f} %, '\
+                'elapse: {elapse:3.3f} min'.format(loss=valid_loss,
                     ppl=math.exp(min(valid_loss, 100)), accu=100*valid_accu,
                     elapse=(time.time()-start)/60))
 
         valid_accus += [valid_accu]
 
-        if (epoch_i+1)%10 == 0:
-            eval_bleu_score(opt, model, test_data, device, split = 'test')
+        if (epoch_i+1)%(opt.test_epoch) == 0:
+            eval_bleu_score(opt, model, test_data, device, epoch_i, split = 'test')
 
         model_state_dict = model.state_dict()
         checkpoint = {
             'model': model_state_dict,
             'settings': opt,
-            'epoch': epoch_i}
+            'epoch': epoch_i
+        }
 
-        if opt.save_model:
+        if opt.save_model_dir:
             if opt.save_mode == 'all':
-                model_name = opt.save_model + '_accu_{accu:3.3f}.chkpt'.format(accu=100*valid_accu)
+                model_name = os.path.join(opt.save_model_dir, 'epoch_{0:02d}.chkpt'.format(epoch_i))
                 torch.save(checkpoint, model_name)
             elif opt.save_mode == 'best':
-                model_name = opt.save_model + '.chkpt'
+                model_name = os.path.join(opt.save_model_dir, 'epoch_{0:02d}.chkpt'.format(epoch_i))
                 if valid_accu >= max(valid_accus):
                     torch.save(checkpoint, model_name)
                     print('    - [Info] The checkpoint file has been updated.')
@@ -232,6 +269,8 @@ def train(model, training_data, validation_data, test_data, optimizer, device, o
                 log_vf.write('{epoch},{loss: 8.5f},{ppl: 8.5f},{accu:3.3f}\n'.format(
                     epoch=epoch_i, loss=valid_loss,
                     ppl=math.exp(min(valid_loss, 100)), accu=100*valid_accu))
+
+        write_status(opt, epoch_i)
 
 def main():
     ''' Main function '''
@@ -257,9 +296,9 @@ def main():
     parser.add_argument('-embs_share_weight', action='store_true')
     parser.add_argument('-proj_share_weight', action='store_true')
 
-    parser.add_argument('-log', default=None)
-    parser.add_argument('-save_model', default=None)
-    parser.add_argument('-save_mode', type=str, choices=['all', 'best'], default='best')
+    parser.add_argument('-log', type=bool, default=True)
+    parser.add_argument('-save_model_dir', default=None, required=True)
+    parser.add_argument('-save_mode', type=str, choices=['all', 'best'], default='all')
 
     parser.add_argument('-no_cuda', action='store_true')
     parser.add_argument('-label_smoothing', action='store_true')
@@ -270,7 +309,8 @@ def main():
                         help="""If verbose is set, will output the n_best
                         decoded sentences""")
 
-
+    parser.add_argument('-test_epoch', type=int, default=5, help='Test every x epochs')
+    parser.add_argument('-resume_from_epoch', type=int, default=0, help='Warm restart')
 
     opt = parser.parse_args()
     opt.cuda = not opt.no_cuda
@@ -323,7 +363,15 @@ def main():
             betas=(0.9, 0.98), eps=1e-09),
         opt.d_model, opt.n_warmup_steps)
 
-    train(transformer, training_data, validation_data, test_data, optimizer, device ,opt)
+    save_params(opt)
+
+    opt = check_restart_conditions(opt)
+    if opt.resume_from_epoch >= 1:
+        print('Loading Old model')
+        print('Loading model files from folder: %s' % opt.save_model_dir)
+        transformer = load_models(transformer, opt, opt.resume_from_epoch)
+
+    train(transformer, training_data, validation_data, test_data, optimizer, device, opt)
 
 
 def prepare_dataloaders(data, opt):

@@ -37,6 +37,8 @@ def main():
     p.add_argument("--strip_ref_metadata",
                    help="strip metadata from the reference and get only the code",
                    action="store_true")
+    p.add_argument("--epoch", type=int,
+                   help="epoch")
 
     args = p.parse_args()
 
@@ -61,7 +63,7 @@ def main():
     if args.output_file:
         f_out = open(args.output_file, 'w')
     elif args.output_dir:
-        f_out = open(os.path.join(args.output_dir, 'scores.txt'), 'w')
+        f_out = open(os.path.join(args.output_dir, 'scores.txt'), 'a')
     else:
         f_out = sys.stdout
 
@@ -69,9 +71,10 @@ def main():
     bleu = bleu_tup[0]
     exact = sum([1 if h == r else 0 for h, r in zip(c_hyp, c_ref)])/len(c_hyp)
 
-    f_out.write('bleu:{0:.2f}\n'.format(bleu * 100))
+    f_out.write('{0:02d},'.format(args.epoch))
+    f_out.write('{0:.2f},'.format(bleu * 100))
     if not args.no_exact_match:
-        f_out.write('exact:{0:.2f}\n'.format(exact * 100))
+        f_out.write('{0:.2f}\n'.format(exact * 100))
 
     f_out.close()
 

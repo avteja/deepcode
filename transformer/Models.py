@@ -234,4 +234,4 @@ class Transformer(nn.Module):
             else:
                 return seq_logit.view(-1, seq_logit.size(2)), dec_output, new_enc_slf_attn_mask, new_dec_slf_attn_mask, new_dec_subsequent_mask, new_enc_non_pad_mask, new_dec_non_pad_mask, new_dec_enc_attn_mask
         else:
-            return seq_logit.view(-1, seq_logit.size(2)),
+            return seq_logit.view(-1, seq_logit.size(2))
