@@ -236,7 +236,8 @@ def eval_epoch(modelTC, modelCT, validation_data, device,tct=True):
 
 def eval_bleu_score(opt, modelTC, data, device, epoch, split = 'dev'):
     translator = Translator(opt, modelTC, load_from_file = False)
-    outfile = open('results/mypreds.hyp', 'w')
+    hyp_file = os.path.join(opt.save_model_dir, 'mypreds' + str(epoch) + '.hyp')
+    outfile = open(hyp_file, 'w')
     for batch in tqdm(data, mininterval=2, desc='  - (Test)', leave=False):
         src_seq, src_pos, tgt_seq, tgt_pos = map(lambda x: x.to(device), batch)
         all_hyp, all_scores = translator.translate_batch(src_seq, src_pos)
