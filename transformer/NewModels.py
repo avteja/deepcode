@@ -62,7 +62,7 @@ class Encoder2(nn.Module):
 
         n_position = len_max_seq + 1
         print(n_position)
-        self.src_word_emb = nn.Linear(d_model, d_word_vec)#nn.Embedding(n_src_vocab, d_word_vec, padding_idx=Constants.PAD)
+        self.src_word_emb = nn.Embedding(n_src_vocab, d_word_vec, padding_idx=Constants.PAD)
 
         self.src_word_all_embed = nn.Linear(n_src_vocab,d_word_vec,bias = False)
 
@@ -75,20 +75,24 @@ class Encoder2(nn.Module):
             for _ in range(n_layers)])
         self.softmax = nn.Softmax(dim=-1)
 
-    def forward(self, src_seq, src_pos, new_enc_slf_attn_mask, new_enc_non_pad_mask, return_attns=False, input_logits = False):
+    def forward(self, src_seq, src_pos, return_attns=False, input_logits = False, true_src_seq = None):
 
         enc_slf_attn_list = []
 
         # -- Prepare masks
-        slf_attn_mask = new_enc_slf_attn_mask
-        non_pad_mask = new_enc_non_pad_mask
+        if input_logits:
+            slf_attn_mask = get_attn_key_pad_mask(seq_k=true_src_seq, seq_q=true_src_seq)
+            non_pad_mask = get_non_pad_mask(true_src_seq)
+        else:
+            slf_attn_mask = get_attn_key_pad_mask(seq_k=src_seq, seq_q=src_seq)
+            non_pad_mask = get_non_pad_mask(src_seq)
 
         # -- Forward
         if input_logits:
             src_seq = self.softmax(src_seq)
             enc_output = self.src_word_all_embed(src_seq) + self.position_enc(src_pos)
         else:
-            enc_output = F.relu(self.src_word_emb(src_seq)) + self.position_enc(src_pos)
+            enc_output = self.src_word_emb(src_seq) + self.position_enc(src_pos)
 
         for enc_layer in self.layer_stack:
             enc_output, enc_slf_attn = enc_layer(
@@ -101,6 +105,7 @@ class Encoder2(nn.Module):
         if return_attns:
             return enc_output, enc_slf_attn_list
         return enc_output,
+
 
 class Decoder2(nn.Module):
     ''' A decoder model with self attention mechanism. '''
@@ -125,24 +130,23 @@ class Decoder2(nn.Module):
             DecoderLayer(d_model, d_inner, n_head, d_k, d_v, dropout=dropout)
             for _ in range(n_layers)])
 
-    def forward(self, tgt_seq, tgt_pos, src_seq, enc_output, new_dec_slf_attn_mask, new_dec_subsequent_mask, new_dec_non_pad_mask, new_dec_enc_attn_mask, return_attns=False):
+    def forward(self, tgt_seq, tgt_pos, src_seq, enc_output, return_attns=False):#, return_masks = False):
 
         dec_slf_attn_list, dec_enc_attn_list = [], []
 
         # -- Prepare masks
-        non_pad_mask = new_dec_non_pad_mask
+        non_pad_mask = get_non_pad_mask(tgt_seq)
 
-        slf_attn_mask_subseq = new_dec_subsequent_mask
-        slf_attn_mask_keypad = new_dec_slf_attn_mask
+        slf_attn_mask_subseq = get_subsequent_mask(tgt_seq)
+        slf_attn_mask_keypad = get_attn_key_pad_mask(seq_k=tgt_seq, seq_q=tgt_seq)
         slf_attn_mask = (slf_attn_mask_keypad + slf_attn_mask_subseq).gt(0)
 
-        dec_enc_attn_mask = new_dec_enc_attn_mask
+        dec_enc_attn_mask = get_attn_key_pad_mask(seq_k=src_seq, seq_q=tgt_seq)
 
         # -- Forward
         dec_output = self.tgt_word_emb(tgt_seq) + self.position_enc(tgt_pos)
 
         for dec_layer in self.layer_stack:
-            #print(dec_output.size(),enc_output.size(),non_pad_mask.size(),slf_attn_mask.size(),dec_enc_attn_mask.size())
             dec_output, dec_slf_attn, dec_enc_attn = dec_layer(
                 dec_output, enc_output,
                 non_pad_mask=non_pad_mask,
@@ -152,7 +156,9 @@ class Decoder2(nn.Module):
             if return_attns:
                 dec_slf_attn_list += [dec_slf_attn]
                 dec_enc_attn_list += [dec_enc_attn]
-
+        
+        assert(not return_attns)
+        
         if return_attns:
             return dec_output, dec_slf_attn_list, dec_enc_attn_list
         return dec_output,
@@ -206,20 +212,25 @@ class Transformer2(nn.Module):
             "To share word embedding table, the vocabulary size of src/tgt shall be the same."
             self.encoder.src_word_emb.weight = self.decoder.tgt_word_emb.weight
 
-    def forward(self, src_seq, src_pos, tgt_seq, tgt_pos, new_enc_slf_attn_mask, new_dec_slf_attn_mask, new_dec_subsequent_mask, new_enc_non_pad_mask, new_dec_non_pad_mask, new_dec_enc_attn_mask,input_logits=False):
+    def forward(self, src_seq, src_pos, tgt_seq, tgt_pos, input_logits=False, true_src_seq = None):
 
-        #tgt_seq, tgt_pos = tgt_seq[:, :-1], tgt_pos[:, :-1]
+        # if not input_logits:
+        #     tgt_seq, tgt_pos = tgt_seq[:, :-1], tgt_pos[:, :-1]
         
-        #print(src_pos.size(),src_seq.size())
         #src_seq = torch.cat((torch.zeros(src_seq.size(0),1,src_seq.size(2)).cuda(),src_seq), dim=1) # jugaad
         #src_pos = src_pos[:, :-1] # jugaad
 
         
-        enc_output, *_ = self.encoder(src_seq, src_pos, new_enc_slf_attn_mask, new_enc_non_pad_mask, input_logits = input_logits)
-        dec_output, *_ = self.decoder(tgt_seq, tgt_pos, src_seq, enc_output, new_dec_slf_attn_mask, new_dec_subsequent_mask, new_dec_non_pad_mask, new_dec_enc_attn_mask)
+        enc_output, *_ = self.encoder(src_seq, src_pos, input_logits = input_logits, true_src_seq = true_src_seq)
+        if input_logits:
+            src_seq = true_src_seq
+        dec_output, *_ = self.decoder(tgt_seq, tgt_pos, src_seq, enc_output)
         seq_logit = self.tgt_word_prj(dec_output) * self.x_logit_scale
 
-        seq_logit = seq_logit[:,:-1,:].contiguous()#jugaad
-
-        return seq_logit.view(-1, seq_logit.size(2))
-
+        if not input_logits:
+            seq_logit_full = seq_logit
+            seq_logit = seq_logit[:,:-1,:].contiguous()#jugaad
+            return seq_logit.view(-1, seq_logit.size(2)), seq_logit_full
+        else:
+            seq_logit = seq_logit[:,:-1,:].contiguous()#jugaad
+            return seq_logit.view(-1, seq_logit.size(2))
