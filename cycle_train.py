@@ -326,6 +326,7 @@ def main():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('-data', required=True)
+    parser.add_argument('-mined_data', required=True)
     parser.add_argument('-snippet_model', required=True)
 
     parser.add_argument('-epoch', type=int, default=10)
@@ -375,12 +376,14 @@ def main():
 
     #========= Loading Dataset =========#
     data = torch.load(opt.data)
+    mined_data = torch.load(opt.mined_data)
+
     opt.inp_seq_max_len = 4*data['settings'].train_max_input_len
     opt.out_seq_max_len = 4*data['settings'].train_max_output_len
     
     opt.max_token_seq_len = int(opt.out_seq_max_len/4)
 
-    training_data, validation_data, test_data = prepare_dataloaders(data, opt)
+    training_data, validation_data, test_data, mined_data = prepare_dataloaders(data, mined_data, opt)
 
     opt.src_vocab_size = training_data.dataset.src_vocab_size
     opt.tgt_vocab_size = training_data.dataset.tgt_vocab_size
@@ -445,7 +448,7 @@ def main():
     train(transformer, transformer2, training_data, validation_data, test_data, optimizer, device, opt)
 
 
-def prepare_dataloaders(data, opt):
+def prepare_dataloaders(data, mined_data, opt):
     # ========= Preparing DataLoader =========#
     train_loader = torch.utils.data.DataLoader(
         TranslationDataset(
@@ -478,7 +481,17 @@ def prepare_dataloaders(data, opt):
         batch_size=opt.batch_size,
         collate_fn=paired_collate_fn)
 
-    return train_loader, valid_loader, test_loader
+    mined_loader = torch.utils.data.DataLoader(
+            TranslationDataset(
+                src_word2idx=mined_data['dict']['src'],
+                tgt_word2idx=mined_data['dict']['tgt'],
+                src_insts=mined_data['train']['src'],
+                tgt_insts=mined_data['train']['tgt']),
+            num_workers=2,
+            batch_size=opt.batch_size,
+            collate_fn=paired_collate_fn)
+
+    return train_loader, valid_loader, test_loader, mined_loader
 
 
 if __name__ == '__main__':
