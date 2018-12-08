@@ -315,6 +315,7 @@ def main():
 
     # Not really needed
     parser.add_argument('-alpha', type=float,default=1.0, help='Weighting loss')
+    parser.add_argument('-lr', type=float,default=1e-3, help='Weighting loss')
 
     opt = parser.parse_args()
     opt.cuda = not opt.no_cuda
@@ -364,7 +365,7 @@ def main():
     optimizer = ScheduledOptim(
         optim.Adam(
             filter(lambda x: x.requires_grad, transformer.parameters()),
-            betas=(0.9, 0.98), eps=1e-09),
+            betas=(0.9, 0.98), eps=1e-09, lr = opt.lr),
         opt.d_model, opt.n_warmup_steps)
 
     save_params(opt)

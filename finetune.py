@@ -253,6 +253,14 @@ def train(model, training_data, validation_data, test_data, mined_data, optimize
 
         valid_accus += [valid_accu]
 
+
+        test_loss, test_accu = eval_epoch(model, test_data, device)
+        print('  - (Test )   loss: {loss: 8.5f}, accuracy: {accu:3.3f} %, '\
+                'elapse: {elapse:3.3f} min'.format(loss=test_loss,
+                    accu=100*test_accu,
+                    elapse=(time.time()-start)/60))
+
+
         if (epoch_i+1)%(opt.test_epoch) == 0:
             eval_bleu_score(opt, model, test_data, device, epoch_i, split = 'test')
 
@@ -328,6 +336,7 @@ def main():
     # Not really needed
     parser.add_argument('-alpha', type=float,default=1.0, help='Weighting loss')
     parser.add_argument('-loss_weight', type=float,default=0.1, help='Mined loss weight')
+    parser.add_argument('-lr', type=float,default=1e-3, help='Learning rate')
 
     opt = parser.parse_args()
     opt.cuda = not opt.no_cuda
@@ -379,7 +388,7 @@ def main():
     optimizer = ScheduledOptim(
         optim.Adam(
             filter(lambda x: x.requires_grad, transformer.parameters()),
-            betas=(0.9, 0.98), eps=1e-09),
+            betas=(0.9, 0.98), eps=1e-09, lr = opt.lr),
         opt.d_model, opt.n_warmup_steps)
 
     save_params(opt)

@@ -27,7 +27,7 @@ sp = spm.SentencePieceProcessor()
 
 ########################################
 # Warm restart code credits: Ankur Garg#
-# First four functions in this code   #
+# First four functions in this code    #
 ########################################
 def check_restart_conditions(opt):
     # Check for the status file corresponding to the model
@@ -111,7 +111,7 @@ def cal_loss(pred, gold, smoothing):
     return loss
 
 
-def train_epoch(modelTC, modelCT, training_data, optimizer, device, smoothing, opt, tct = True):
+def train_epoch(modelTC, modelCT, training_data, optimizer, device, smoothing, opt):
     ''' Epoch operation in training phase'''
     modelTC.train()
     modelCT.train()
@@ -120,119 +120,124 @@ def train_epoch(modelTC, modelCT, training_data, optimizer, device, smoothing, o
     n_code_word_total = 0
     n_code_word_correct = 0
 
-    total_text_loss = 0
-    n_text_word_total = 0
-    n_text_word_correct = 0
+    total_recon_loss = 0
+    n_recon_word_total = 0
+    n_recon_word_correct = 0
 
-    for batch in tqdm(
-            training_data, mininterval=2,
+    for train_batch, mined_batch in tqdm(zip(training_data, mined_data), mininterval=2,
             desc='  - (Training)   ', leave=False):
 
-        # prepare data
-        src_seq, src_pos, tgt_seq, tgt_pos = map(lambda x: x.to(device), batch)
+        optimizer.zero_grad()
+  
+        ## Train Data - TC Only
+        src_seq, src_pos, tgt_seq, tgt_pos = map(lambda x: x.to(device), train_batch)
         gold_code = tgt_seq[:, 1:]
         gold_text = src_seq[:, 1:]
 
-        # forward
-        optimizer.zero_grad()
-        #w = input("s")
         
-        if tct:
-            pred_code, dec_output = modelTC(src_seq, src_pos, tgt_seq, tgt_pos, input_logits = False) 
+        pred_code, dec_output = modelTC(src_seq, src_pos, tgt_seq, tgt_pos, input_logits = False) 
 
-            pred_text = modelCT(dec_output, tgt_pos, src_seq, src_pos, input_logits = True, true_src_seq = tgt_seq)
-        else:
-            pred_text, dec_output = modelCT(tgt_seq, tgt_pos, src_seq, src_pos, input_logits = False)
-            
-            pred_code = modelTC(dec_output, src_pos, tgt_seq, tgt_pos, input_logits = True, true_src_seq = src_seq)
-
-        # backward
+        # Loss
         code_loss, n_code_correct = cal_performance(pred_code, gold_code, smoothing=smoothing)
-        text_loss, n_text_correct = cal_performance(pred_text, gold_text, smoothing = smoothing)
         
-        (code_loss + opt.alpha*text_loss).backward()
+        ## Mined Data - CTC Reconstruction
+        src_seq, src_pos, tgt_seq, tgt_pos = map(lambda x: x.to(device), mined_data)
+        gold_code = tgt_seq[:, 1:]
+        gold_text = src_seq[:, 1:]
+
+        pred_text, dec_output = modelCT(tgt_seq, tgt_pos, src_seq, src_pos, input_logits = False)
+        
+        pred_code = modelTC(dec_output, src_pos, tgt_seq, tgt_pos, , true_src_seq = src_seq) 
+
+        # Loss
+        recon_loss, n_recon_correct = cal_performance(pred_code, gold_code, smoothing=smoothing)
+        
+        # Backward
+        (code_loss + opt.alpha*recon_loss).backward()
 
         # update parameters
         optimizer.step_and_update_lr()
 
         # note keeping
         total_code_loss += code_loss.item()
-        total_text_loss += text_loss.item()
+        total_recon_loss += recon_loss.item()
 
         non_pad_mask = gold_code.ne(Constants.PAD)
         n_code_word = non_pad_mask.sum().item()
         n_code_word_total += n_code_word
         n_code_word_correct += n_code_correct
 
-        non_pad_mask = gold_text.ne(Constants.PAD)
-        n_text_word = non_pad_mask.sum().item()
-        n_text_word_total += n_text_word
-        n_text_word_correct += n_text_correct
+        non_pad_mask = gold_recon.ne(Constants.PAD)
+        n_recon_word = non_pad_mask.sum().item()
+        n_recon_word_total += n_recon_word
+        n_recon_word_correct += n_recon_correct
         
     code_loss_per_word = total_code_loss/n_code_word_total
-    text_loss_per_word = total_text_loss/n_text_word_total
+    recon_loss_per_word = total_recon_loss/n_recon_word_total
     code_accuracy = n_code_word_correct/n_code_word_total
-    text_accuracy = n_text_word_correct/n_text_word_total
-    return code_loss_per_word, text_loss_per_word, code_accuracy, text_accuracy
+    recon_accuracy = n_recon_word_correct/n_recon_word_total
+    return code_loss_per_word, recon_loss_per_word, code_accuracy, recon_accuracy
 
-def eval_epoch(modelTC, modelCT, validation_data, device,tct=True):
+def eval_epoch(modelTC, validation_data, device):
     ''' Epoch operation in evaluation phase '''
 
     modelTC.eval()
-    modelCT.eval()
+    # modelCT.eval()
     
     total_code_loss = 0
     n_code_word_total = 0
     n_code_word_correct = 0
 
-    total_text_loss = 0
-    n_text_word_total = 0
-    n_text_word_correct = 0
+    # total_recon_loss = 0
+    # n_recon_word_total = 0
+    # n_recon_word_correct = 0
 
     with torch.no_grad():
-        for batch in tqdm(
-                validation_data, mininterval=2,
-                desc='  - (Validation) ', leave=False):
+        for batch in tqdm(validation_data, mininterval=2,
+            desc='  - (Training)   ', leave=False):
 
-            # prepare data
+            ## Train Data - TC Only
             src_seq, src_pos, tgt_seq, tgt_pos = map(lambda x: x.to(device), batch)
             gold_code = tgt_seq[:, 1:]
             gold_text = src_seq[:, 1:]
 
-            # forward
-            if tct:
-                pred_code, dec_output = modelTC(src_seq, src_pos, tgt_seq, tgt_pos, input_logits = False) 
+            
+            pred_code, dec_output = modelTC(src_seq, src_pos, tgt_seq, tgt_pos, input_logits = False) 
 
-                pred_text = modelCT(dec_output, tgt_pos, src_seq, src_pos, input_logits = True, true_src_seq = tgt_seq)
-            elif :
-                pred_text, dec_output = modelCT(tgt_seq, tgt_pos, src_seq, src_pos, input_logits = False)
-                
-                pred_code = modelTC(dec_output, src_pos, tgt_seq, tgt_pos, input_logits = True, true_src_seq = src_seq)
-            # loss
-            code_loss, n_code_correct = cal_performance(pred_code, gold_code)
+            # Loss
+            code_loss, n_code_correct = cal_performance(pred_code, gold_code, smoothing=smoothing)
+            
+            # ## Mined Data - CTC Reconstruction
+            # src_seq, src_pos, tgt_seq, tgt_pos = map(lambda x: x.to(device), mined_data)
+            # gold_code = tgt_seq[:, 1:]
+            # gold_text = src_seq[:, 1:]
 
-            text_loss, n_text_correct = cal_performance(pred_text, gold_text)
+            # pred_text, dec_output = modelCT(tgt_seq, tgt_pos, src_seq, src_pos, input_logits = False)
+            
+            # pred_code = modelTC(dec_output, src_pos, tgt_seq, tgt_pos, , true_src_seq = src_seq) 
 
+            # # Loss
+            # recon_loss, n_recon_correct = cal_performance(pred_code, gold_code, smoothing=smoothing)
 
             # note keeping
             total_code_loss += code_loss.item()
-            total_text_loss += text_loss.item()
+            # total_recon_loss += recon_loss.item()
 
             non_pad_mask = gold_code.ne(Constants.PAD)
             n_code_word = non_pad_mask.sum().item()
             n_code_word_total += n_code_word
             n_code_word_correct += n_code_correct
 
-            non_pad_mask = gold_text.ne(Constants.PAD)
-            n_text_word = non_pad_mask.sum().item()
-            n_text_word_total += n_text_word
-            n_text_word_correct += n_text_correct
-
+            # non_pad_mask = gold_recon.ne(Constants.PAD)
+            # n_recon_word = non_pad_mask.sum().item()
+            # n_recon_word_total += n_recon_word
+            # n_recon_word_correct += n_recon_correct
+        
     code_loss_per_word = total_code_loss/n_code_word_total
-    text_loss_per_word = total_text_loss/n_text_word_total
+    # recon_loss_per_word = total_recon_loss/n_recon_word_total
     code_accuracy = n_code_word_correct/n_code_word_total
-    text_accuracy = n_text_word_correct/n_text_word_total
-    return code_loss_per_word, text_loss_per_word, code_accuracy, text_accuracy
+    # recon_accuracy = n_recon_word_correct/n_recon_word_total
+    return code_loss_per_word, code_accuracy
 
 def eval_bleu_score(opt, modelTC, data, device, epoch, split = 'dev'):
     translator = Translator(opt, modelTC, load_from_file = False)
@@ -249,7 +254,7 @@ def eval_bleu_score(opt, modelTC, data, device, epoch, split = 'dev'):
     outfile.close()
     os.system("sh calcBLEU.sh " + split + " " + opt.save_model_dir + " " + str(epoch))
 
-def train(modelTC, modelCT, training_data, validation_data, test_data, optimizer, device, opt):
+def train(modelTC, modelCT, training_data, mined_data, validation_data, test_data, optimizer, device, opt):
     ''' Start training '''
 
     log_train_file = None
@@ -446,7 +451,7 @@ def main():
         print('Loading model files from folder: %s' % opt.save_model_dir)
         transformer, transformer2 = load_models(transformer, transformer2, opt, opt.resume_from_epoch)
 
-    train(transformer, transformer2, training_data, validation_data, test_data, optimizer, device, opt)
+    train(transformer, transformer2, training_data, mined_data, validation_data, test_data, optimizer, device, opt)
 
 
 def prepare_dataloaders(data, mined_data, opt):
@@ -490,7 +495,8 @@ def prepare_dataloaders(data, mined_data, opt):
                 tgt_insts=mined_data['train']['tgt']),
             num_workers=2,
             batch_size=opt.batch_size,
-            collate_fn=paired_collate_fn)
+            collate_fn=paired_collate_fn,
+            shuffle=True)
 
     return train_loader, valid_loader, test_loader, mined_loader
 
