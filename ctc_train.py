@@ -111,7 +111,7 @@ def cal_loss(pred, gold, smoothing):
     return loss
 
 
-def train_epoch(modelTC, modelCT, training_data, optimizer, device, smoothing, opt):
+def train_epoch(modelTC, modelCT, training_data, mined_data, optimizer, device, smoothing, opt):
     ''' Epoch operation in training phase'''
     modelTC.train()
     modelCT.train()
@@ -125,7 +125,7 @@ def train_epoch(modelTC, modelCT, training_data, optimizer, device, smoothing, o
     n_recon_word_correct = 0
 
     for train_batch, mined_batch in tqdm(zip(training_data, mined_data), mininterval=2,
-            desc='  - (Training)   ', leave=False):
+            desc='  - (Training)   ', leave=False, total=len(training_data)):
 
         optimizer.zero_grad()
   
@@ -141,16 +141,16 @@ def train_epoch(modelTC, modelCT, training_data, optimizer, device, smoothing, o
         code_loss, n_code_correct = cal_performance(pred_code, gold_code, smoothing=smoothing)
         
         ## Mined Data - CTC Reconstruction
-        src_seq, src_pos, tgt_seq, tgt_pos = map(lambda x: x.to(device), mined_data)
-        gold_code = tgt_seq[:, 1:]
-        gold_text = src_seq[:, 1:]
+        src_seq, src_pos, tgt_seq, tgt_pos = map(lambda x: x.to(device), mined_batch)
+        gold_recon = tgt_seq[:, 1:]
+        # gold_text = src_seq[:, 1:]
 
         pred_text, dec_output = modelCT(tgt_seq, tgt_pos, src_seq, src_pos, input_logits = False)
         
-        pred_code = modelTC(dec_output, src_pos, tgt_seq, tgt_pos, , true_src_seq = src_seq) 
+        pred_recon = modelTC(dec_output, src_pos, tgt_seq, tgt_pos, input_logits = True, true_src_seq = src_seq) 
 
         # Loss
-        recon_loss, n_recon_correct = cal_performance(pred_code, gold_code, smoothing=smoothing)
+        recon_loss, n_recon_correct = cal_performance(pred_recon, gold_recon, smoothing=smoothing)
         
         # Backward
         (code_loss + opt.alpha*recon_loss).backward()
@@ -205,7 +205,7 @@ def eval_epoch(modelTC, validation_data, device):
             pred_code, dec_output = modelTC(src_seq, src_pos, tgt_seq, tgt_pos, input_logits = False) 
 
             # Loss
-            code_loss, n_code_correct = cal_performance(pred_code, gold_code, smoothing=smoothing)
+            code_loss, n_code_correct = cal_performance(pred_code, gold_code)
             
             # ## Mined Data - CTC Reconstruction
             # src_seq, src_pos, tgt_seq, tgt_pos = map(lambda x: x.to(device), mined_data)
@@ -241,7 +241,7 @@ def eval_epoch(modelTC, validation_data, device):
 
 def eval_bleu_score(opt, modelTC, data, device, epoch, split = 'dev'):
     translator = Translator(opt, modelTC, load_from_file = False)
-    hyp_file = os.path.join(opt.save_model_dir, 'mypreds' + str(epoch) + '.hyp')
+    hyp_file = os.path.join(opt.save_model_dir, 'mypreds_' + split + '_' + str(epoch) + '.hyp')
     outfile = open(hyp_file, 'w')
     for batch in tqdm(data, mininterval=2, desc='  - (Test)', leave=False):
         src_seq, src_pos, tgt_seq, tgt_pos = map(lambda x: x.to(device), batch)
@@ -259,39 +259,53 @@ def train(modelTC, modelCT, training_data, mined_data, validation_data, test_dat
 
     log_train_file = None
     log_valid_file = None
+    log_test_file = None
 
     if opt.log:
         log_train_file = os.path.join(opt.save_model_dir, 'train.log')
         log_valid_file = os.path.join(opt.save_model_dir, 'valid.log')
+        log_test_file = os.path.join(opt.save_model_dir, 'test.log')
 
-        print('[Info] Training performance will be written to file: {} and {}'.format(
-            log_train_file, log_valid_file))
+        print('[Info] Training performance will be written to file: {}, {}, and {}'.format(
+            log_train_file, log_valid_file, log_test_file))
 
-        with open(log_train_file, 'w') as log_tf, open(log_valid_file, 'w') as log_vf:
-            log_tf.write('epoch,code_loss,code_ppl,code_accuracy,text_loss,text_ppl,text_accuracy\n')
-            log_vf.write('epoch,code_loss,code_ppl,code_accuracy,text_loss,text_ppl,text_accuracy\n')
+        with open(log_train_file, 'a') as log_tf, open(log_valid_file, 'a') as log_vf, open(log_test_file, 'a') as log_testf:
+            log_tf.write('epoch,code_loss,code_accuracy,text_loss,text_accuracy\n')
+            log_vf.write('epoch,code_loss,code_accuracy\n')
+            log_testf.write('epoch,code_loss,code_accuracy\n')
 
     valid_code_accus = []
     for epoch_i in range(opt.resume_from_epoch, opt.resume_from_epoch + opt.epoch):
         print('[ Epoch', epoch_i, ']')
 
         start = time.time()
-        train_code_loss, train_text_loss, train_code_accu, train_text_accu = train_epoch(
-            modelTC, modelCT, training_data, optimizer, device, smoothing=opt.label_smoothing, opt=opt)
-        print('  - (Training)   code_loss: {code_loss: 8.5f}, code_ppl: {code_ppl: 8.5f}, code_accuracy: {code_accu:3.3f} %, text_loss: {text_loss: 8.5f}, text_ppl: {text_ppl: 8.5f}, text_accuracy: {text_accu:3.3f} %, '\
+        train_code_loss, train_recon_loss, train_code_accu, train_recon_accu = train_epoch(
+            modelTC, modelCT, training_data, mined_data, optimizer, device, smoothing=opt.label_smoothing, opt=opt)
+        print('  - (Training)   code_loss: {code_loss: 8.5f}, code_accuracy: {code_accu:3.3f} %, recon_loss: {recon_loss: 8.5f}, recon_accuracy: {recon_accu:3.3f} %, '\
               'elapse: {elapse:3.3f} min'.format(
-                  code_loss=train_code_loss, code_ppl=math.exp(min(train_code_loss, 100)), code_accu=100*train_code_accu, text_loss=train_text_loss, text_ppl=math.exp(min(train_text_loss, 100)), text_accu=100*train_text_accu,
+                  code_loss=train_code_loss, code_accu=100*train_code_accu, recon_loss=train_recon_loss, recon_accu=100*train_recon_accu,
                   elapse=(time.time()-start)/60))
 
         start = time.time()
-        valid_code_loss, valid_text_loss, valid_code_accu, valid_text_accu = eval_epoch(
-            modelTC, modelCT, validation_data, device)
-        print('  - (Validation)   code_loss: {code_loss: 8.5f}, code_ppl: {code_ppl: 8.5f}, code_accuracy: {code_accu:3.3f} %, text_loss: {text_loss: 8.5f}, text_ppl: {text_ppl: 8.5f}, text_accuracy: {text_accu:3.3f} %, '\
+        valid_code_loss, valid_code_accu= eval_epoch(
+            modelTC, validation_data, device)
+        print('  - (Validation)   code_loss: {code_loss: 8.5f}, code_accuracy: {code_accu:3.3f} %, '\
               'elapse: {elapse:3.3f} min'.format(
-                  code_loss=valid_code_loss, code_ppl=math.exp(min(valid_code_loss, 100)), code_accu=100*valid_code_accu, text_loss=valid_text_loss, text_ppl=math.exp(min(valid_text_loss, 100)), text_accu=100*valid_text_accu,
+                  code_loss=valid_code_loss, code_accu=100*valid_code_accu,
                   elapse=(time.time()-start)/60))
 
         valid_code_accus += [valid_code_accu]
+
+        start = time.time()
+        test_code_loss, test_code_accu= eval_epoch(
+            modelTC, test_data, device)
+        print('  - (Test)   code_loss: {code_loss: 8.5f}, code_accuracy: {code_accu:3.3f} %, '\
+              'elapse: {elapse:3.3f} min'.format(
+                  code_loss=test_code_loss, code_accu=100*test_code_accu,
+                  elapse=(time.time()-start)/60))
+
+        if (epoch_i+1)%(opt.test_epoch) == 0:
+            eval_bleu_score(opt, modelTC, validation_data, device, epoch_i, split = 'dev')
 
         if (epoch_i+1)%(opt.test_epoch) == 0:
             eval_bleu_score(opt, modelTC, test_data, device, epoch_i, split = 'test')
@@ -314,16 +328,14 @@ def train(modelTC, modelCT, training_data, mined_data, validation_data, test_dat
                     torch.save(checkpoint, model_name)
                     print('    - [Info] The checkpoint file has been updated.')
 
-        if log_train_file and log_valid_file:
-            with open(log_train_file, 'a') as log_tf, open(log_valid_file, 'a') as log_vf:
-                log_tf.write('{epoch},{code_loss: 8.5f},{code_ppl: 8.5f},{code_accu:3.3f},{text_loss: 8.5f},{text_ppl: 8.5f},{text_accu:3.3f}\n'.format(
-                    epoch=epoch_i, code_loss=train_code_loss,
-                    code_ppl=math.exp(min(train_code_loss, 100)), code_accu=100*train_code_accu, text_loss=train_text_loss,
-                    text_ppl=math.exp(min(train_text_loss, 100)), text_accu=100*train_text_accu))
-                log_vf.write('{epoch},{code_loss: 8.5f},{code_ppl: 8.5f},{code_accu:3.3f},{text_loss: 8.5f},{text_ppl: 8.5f},{text_accu:3.3f}\n'.format(
-                    epoch=epoch_i, code_loss=valid_code_loss,
-                    code_ppl=math.exp(min(valid_code_loss, 100)), code_accu=100*valid_code_accu, text_loss=valid_text_loss,
-                    text_ppl=math.exp(min(valid_text_loss, 100)), text_accu=100*valid_text_accu))
+        if log_train_file and log_valid_file and log_test_file:
+            with open(log_train_file, 'a') as log_tf, open(log_valid_file, 'a') as log_vf, open(log_test_file, 'a') as log_testf:
+                log_tf.write('{epoch},{code_loss: 8.5f},{code_accu:3.3f},{recon_loss: 8.5f},{recon_accu:3.3f}\n'.format(
+                    epoch=epoch_i, code_loss=train_code_loss, code_accu=100*train_code_accu, recon_loss=train_recon_loss, recon_accu=100*train_recon_accu))
+                log_vf.write('{epoch},{code_loss: 8.5f},{code_accu:3.3f}\n'.format(
+                    epoch=epoch_i, code_loss=valid_code_loss, code_accu=100*valid_code_accu))
+                log_testf.write('{epoch},{code_loss: 8.5f},{code_accu:3.3f}\n'.format(
+                    epoch=epoch_i, code_loss=test_code_loss, code_accu=100*test_code_accu))
                 
         write_status(opt, epoch_i)
 

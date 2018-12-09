@@ -191,7 +191,7 @@ def eval_epoch(model, validation_data, device):
 
 def eval_bleu_score(opt, model, data, device, epoch, split = 'dev'):
     translator = Translator(opt, model, load_from_file = False)
-    hyp_file = os.path.join(opt.save_model_dir, 'mypreds' + str(epoch) + '.hyp')
+    hyp_file = os.path.join(opt.save_model_dir, 'mypreds_' + split + '_' + str(epoch) + '.hyp')
     outfile = open(hyp_file, 'w')
     for batch in tqdm(data, mininterval=2, desc='  - (Test)', leave=False):
         src_seq, src_pos, tgt_seq, tgt_pos = map(lambda x: x.to(device), batch)
@@ -213,13 +213,15 @@ def train(model, training_data, validation_data, test_data, optimizer, device, o
     if opt.log:
         log_train_file = os.path.join(opt.save_model_dir, 'train.log')
         log_valid_file = os.path.join(opt.save_model_dir, 'valid.log')
+        log_test_file = os.path.join(opt.save_model_dir, 'test.log')
 
-        print('[Info] Training performance will be written to file: {} and {}'.format(
-            log_train_file, log_valid_file))
+        print('[Info] Training performance will be written to file: {}, {}, and {}'.format(
+            log_train_file, log_valid_file, log_test_file))
 
-        with open(log_train_file, 'w') as log_tf, open(log_valid_file, 'w') as log_vf:
-            log_tf.write('epoch,loss,ppl,accuracy\n')
-            log_vf.write('epoch,loss,ppl,accuracy\n')
+        with open(log_train_file, 'a') as log_tf, open(log_valid_file, 'a') as log_vf, open(log_test_file, 'a') as log_testf:
+            log_tf.write('epoch,loss,accuracy\n')
+            log_vf.write('epoch,loss,accuracy\n')
+            log_testf.write('epoch,loss,accuracy\n')
 
     valid_accus = []
     for epoch_i in range(opt.resume_from_epoch, opt.resume_from_epoch + opt.epoch):
@@ -228,19 +230,26 @@ def train(model, training_data, validation_data, test_data, optimizer, device, o
         start = time.time()
         train_loss, train_accu = train_epoch(
             model, training_data, optimizer, device, smoothing=opt.label_smoothing)
-        print('  - (Training)   loss: {loss: 8.5f} ppl: {ppl: 8.5f}, accuracy: {accu:3.3f} %, '\
-              'elapse: {elapse:3.3f} min'.format(loss=train_loss,
-                  ppl=math.exp(min(train_loss, 100)), accu=100*train_accu,
+        print('  - (Training)   loss: {loss: 8.5f}, accuracy: {accu:3.3f} %, '\
+              'elapse: {elapse:3.3f} min'.format(loss=train_loss, accu=100*train_accu,
                   elapse=(time.time()-start)/60))
 
         start = time.time()
         valid_loss, valid_accu = eval_epoch(model, validation_data, device)
-        print('  - (Validation) loss: {loss: 8.5f} ppl: {ppl: 8.5f}, accuracy: {accu:3.3f} %, '\
-                'elapse: {elapse:3.3f} min'.format(loss=valid_loss,
-                    ppl=math.exp(min(valid_loss, 100)), accu=100*valid_accu,
+        print('  - (Validation) loss: {loss: 8.5f}, accuracy: {accu:3.3f} %, '\
+                'elapse: {elapse:3.3f} min'.format(loss=valid_loss, accu=100*valid_accu,
                     elapse=(time.time()-start)/60))
 
         valid_accus += [valid_accu]
+
+        start = time.time()
+        test_loss, test_accu = eval_epoch(model, test_data, device)
+        print('  - (Test) loss: {loss: 8.5f}, accuracy: {accu:3.3f} %, '\
+                'elapse: {elapse:3.3f} min'.format(loss=test_loss, accu=100*test_accu,
+                    elapse=(time.time()-start)/60))
+
+        if (epoch_i+1)%(opt.test_epoch) == 0:
+            eval_bleu_score(opt, model, validation_data, device, epoch_i, split = 'dev')
 
         if (epoch_i+1)%(opt.test_epoch) == 0:
             eval_bleu_score(opt, model, test_data, device, epoch_i, split = 'test')
@@ -263,13 +272,16 @@ def train(model, training_data, validation_data, test_data, optimizer, device, o
                     print('    - [Info] The checkpoint file has been updated.')
 
         if log_train_file and log_valid_file:
-            with open(log_train_file, 'a') as log_tf, open(log_valid_file, 'a') as log_vf:
-                log_tf.write('{epoch},{loss: 8.5f},{ppl: 8.5f},{accu:3.3f}\n'.format(
+            with open(log_train_file, 'a') as log_tf, open(log_valid_file, 'a') as log_vf, open(log_test_file, 'a') as log_testf:
+                log_tf.write('{epoch},{loss: 8.5f},{accu:3.3f}\n'.format(
                     epoch=epoch_i, loss=train_loss,
                     ppl=math.exp(min(train_loss, 100)), accu=100*train_accu))
-                log_vf.write('{epoch},{loss: 8.5f},{ppl: 8.5f},{accu:3.3f}\n'.format(
+                log_vf.write('{epoch},{loss: 8.5f},{accu:3.3f}\n'.format(
                     epoch=epoch_i, loss=valid_loss,
                     ppl=math.exp(min(valid_loss, 100)), accu=100*valid_accu))
+                log_testf.write('{epoch},{loss: 8.5f},{accu:3.3f}\n'.format(
+                    epoch=epoch_i, loss=test_loss,
+                    ppl=math.exp(min(test_loss, 100)), accu=100*test_accu))
 
         write_status(opt, epoch_i)
 

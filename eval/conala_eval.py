@@ -39,6 +39,7 @@ def main():
                    action="store_true")
     p.add_argument("--epoch", type=int,
                    help="epoch")
+    p.add_argument("--split", help="split")
 
     args = p.parse_args()
 
@@ -63,7 +64,7 @@ def main():
     if args.output_file:
         f_out = open(args.output_file, 'w')
     elif args.output_dir:
-        f_out = open(os.path.join(args.output_dir, 'scores.txt'), 'a')
+        f_out = open(os.path.join(args.output_dir, args.split + '_scores.txt'), 'a')
     else:
         f_out = sys.stdout
 
