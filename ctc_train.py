@@ -144,14 +144,19 @@ def train_epoch(modelTC, modelCT, training_data, mined_data, optimizer, device, 
         src_seq, src_pos, tgt_seq, tgt_pos = map(lambda x: x.to(device), mined_batch)
         gold_recon = tgt_seq[:, 1:]
         # gold_text = src_seq[:, 1:]
-
-        pred_text, dec_output = modelCT(tgt_seq, tgt_pos, src_seq, src_pos, input_logits = False)
         
-        pred_recon = modelTC(dec_output, src_pos, tgt_seq, tgt_pos, input_logits = True, true_src_seq = src_seq) 
+        if opt.alpha > 0:
 
-        # Loss
-        recon_loss, n_recon_correct = cal_performance(pred_recon, gold_recon, smoothing=smoothing)
-        
+            pred_text, dec_output = modelCT(tgt_seq, tgt_pos, src_seq, src_pos, input_logits = False)
+            
+            pred_recon = modelTC(dec_output, src_pos, tgt_seq, tgt_pos, input_logits = True, true_src_seq = src_seq) 
+
+            # Loss
+            recon_loss, n_recon_correct = cal_performance(pred_recon, gold_recon, smoothing=smoothing)
+        else:
+            recon_loss = torch.Tensor([0.0]).to(device)
+            n_recon_correct = 0
+
         # Backward
         (code_loss + opt.alpha*recon_loss).backward()
 
@@ -382,6 +387,7 @@ def main():
 
     # New loss weighting
     parser.add_argument('-alpha', type=float,default=1.0, help='Weighting loss')
+    parser.add_argument('-lr', type=float,default=1e-3, help='Learning rate')
     #parser.add_argument('-no_return_masks',dest = 'return_masks', default = True, action='store_false')
     #parser.add_argument('-no_return_logits',dest = 'return_logits', default = True, action='store_false')
 
@@ -452,7 +458,7 @@ def main():
     optimizer = ScheduledOptim(
         optim.Adam(
             filter(lambda x: x.requires_grad, list(transformer.parameters())+list(transformer2.parameters())),
-            betas=(0.9, 0.98), eps=1e-09),
+            betas=(0.9, 0.98), eps=1e-09, lr=opt.lr),
         opt.d_model, opt.n_warmup_steps)
 
     save_params(opt)

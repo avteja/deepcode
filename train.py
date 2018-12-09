@@ -327,7 +327,7 @@ def main():
 
     # Not really needed
     parser.add_argument('-alpha', type=float,default=1.0, help='Weighting loss')
-    parser.add_argument('-lr', type=float,default=1e-3, help='Weighting loss')
+    parser.add_argument('-lr', type=float,default=1e-3, help='Learning Rate')
 
     opt = parser.parse_args()
     opt.cuda = not opt.no_cuda
