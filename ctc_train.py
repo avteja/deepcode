@@ -16,6 +16,7 @@ from dataset import TranslationDataset, paired_collate_fn
 from transformer.Models import Transformer
 from transformer.NewModels import Transformer2
 from transformer.Optim import ScheduledOptim
+from transformer.GaussianNoise import GaussianNoise
 import os
 import json
 
@@ -111,7 +112,7 @@ def cal_loss(pred, gold, smoothing):
     return loss
 
 
-def train_epoch(modelTC, modelCT, training_data, mined_data, optimizer, device, smoothing, opt):
+def train_epoch(modelTC, modelCT, training_data, mined_data, optimizer, device, smoothing, opt, noise_model = None):
     ''' Epoch operation in training phase'''
     modelTC.train()
     modelCT.train()
@@ -145,10 +146,12 @@ def train_epoch(modelTC, modelCT, training_data, mined_data, optimizer, device, 
         gold_recon = tgt_seq[:, 1:]
         # gold_text = src_seq[:, 1:]
         
-        if opt.alpha > 0:
+        if True:
 
             pred_text, dec_output = modelCT(tgt_seq, tgt_pos, src_seq, src_pos, input_logits = False)
-            
+            if noise_model is not None:
+            	dec_output = noise_model(dec_output)
+
             pred_recon = modelTC(dec_output, src_pos, tgt_seq, tgt_pos, input_logits = True, true_src_seq = src_seq) 
 
             # Loss
@@ -259,7 +262,7 @@ def eval_bleu_score(opt, modelTC, data, device, epoch, split = 'dev'):
     outfile.close()
     os.system("sh calcBLEU.sh " + split + " " + opt.save_model_dir + " " + str(epoch))
 
-def train(modelTC, modelCT, training_data, mined_data, validation_data, test_data, optimizer, device, opt):
+def train(modelTC, modelCT, training_data, mined_data, validation_data, test_data, optimizer, device, opt,noise_model=None):
     ''' Start training '''
 
     log_train_file = None
@@ -285,7 +288,7 @@ def train(modelTC, modelCT, training_data, mined_data, validation_data, test_dat
 
         start = time.time()
         train_code_loss, train_recon_loss, train_code_accu, train_recon_accu = train_epoch(
-            modelTC, modelCT, training_data, mined_data, optimizer, device, smoothing=opt.label_smoothing, opt=opt)
+            modelTC, modelCT, training_data, mined_data, optimizer, device, smoothing=opt.label_smoothing, opt=opt, noise_model = noise_model)
         print('  - (Training)   code_loss: {code_loss: 8.5f}, code_accuracy: {code_accu:3.3f} %, recon_loss: {recon_loss: 8.5f}, recon_accuracy: {recon_accu:3.3f} %, '\
               'elapse: {elapse:3.3f} min'.format(
                   code_loss=train_code_loss, code_accu=100*train_code_accu, recon_loss=train_recon_loss, recon_accu=100*train_recon_accu,
@@ -453,7 +456,7 @@ def main():
             n_layers=opt.n_layers,
             n_head=opt.n_head,
             dropout=opt.dropout).to(device)
-
+    noise_model = GaussianNoise()
     #optimizer_params_group = [ { 'params': transformer.parameters()},{'params': transformer2.parameters()} ]
     optimizer = ScheduledOptim(
         optim.Adam(
@@ -469,7 +472,7 @@ def main():
         print('Loading model files from folder: %s' % opt.save_model_dir)
         transformer, transformer2 = load_models(transformer, transformer2, opt, opt.resume_from_epoch)
 
-    train(transformer, transformer2, training_data, mined_data, validation_data, test_data, optimizer, device, opt)
+    train(transformer, transformer2, training_data, mined_data, validation_data, test_data, optimizer, device, opt, noise_model=noise_model)
 
 
 def prepare_dataloaders(data, mined_data, opt):
