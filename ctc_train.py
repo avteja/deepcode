@@ -377,6 +377,7 @@ def main():
     parser.add_argument('-save_mode', type=str, choices=['all', 'best'], default='all')
 
     parser.add_argument('-no_cuda', action='store_true')
+    parser.add_argument('-use_noise', action='store_true')
     parser.add_argument('-label_smoothing', action='store_true')
 
     # For bleu eval
@@ -456,7 +457,7 @@ def main():
             n_layers=opt.n_layers,
             n_head=opt.n_head,
             dropout=opt.dropout).to(device)
-    noise_model = GaussianNoise()
+    
     #optimizer_params_group = [ { 'params': transformer.parameters()},{'params': transformer2.parameters()} ]
     optimizer = ScheduledOptim(
         optim.Adam(
@@ -471,6 +472,11 @@ def main():
         print('Loading Old model')
         print('Loading model files from folder: %s' % opt.save_model_dir)
         transformer, transformer2 = load_models(transformer, transformer2, opt, opt.resume_from_epoch)
+
+    if opt.use_noise:
+    	noise_model = GaussianNoise()
+    else:
+    	noise_model = None
 
     train(transformer, transformer2, training_data, mined_data, validation_data, test_data, optimizer, device, opt, noise_model=noise_model)
 
